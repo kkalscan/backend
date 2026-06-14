@@ -14,7 +14,8 @@ REST API для [KkalScan](https://github.com/kkalscan/mobile): скан еды 
 | Файл | Описание |
 |------|----------|
 | [docs/architecture.md](docs/architecture.md) | Модули, слои, интеграции |
-| [docs/api.md](docs/api.md) | REST API v1 — контракты, коды ошибок |
+| [docs/api.md](docs/api.md) | REST API v1 — HTTP контракты |
+| [docs/methods.md](docs/methods.md) | **Каталог методов** — services, repositories, routes |
 | [docs/database.md](docs/database.md) | Схема БД, миграции |
 | [docs/scan-quota.md](docs/scan-quota.md) | Лимиты сканов и бизнес-правила |
 | [docs/auth.md](docs/auth.md) | JWT, VK ID, merge device → user |

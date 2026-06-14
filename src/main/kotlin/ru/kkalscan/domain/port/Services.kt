@@ -1,0 +1,298 @@
+package ru.kkalscan.domain.port
+
+import ru.kkalscan.domain.model.Actor
+import ru.kkalscan.domain.model.DishDto
+import ru.kkalscan.domain.model.MealType
+import ru.kkalscan.domain.model.OAuthProvider
+import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
+import java.util.UUID
+
+interface IdentityResolver {
+    suspend fun resolve(deviceId: UUID, bearerToken: String?): Actor
+}
+
+interface ScanService {
+    suspend fun analyzePhoto(
+        actor: Actor,
+        photoBytes: ByteArray,
+        localDate: LocalDate,
+        timezoneOffsetMinutes: Int,
+    ): ScanResult
+
+    data class ScanResult(
+        val scanId: UUID,
+        val dishes: List<DishDto>,
+        val totals: ru.kkalscan.domain.model.MacroTotals,
+        val scansLeft: Int?,
+        val isPro: Boolean,
+    )
+}
+
+interface QuotaService {
+    suspend fun canStartScan(actor: Actor, localDate: LocalDate): Boolean
+
+    suspend fun consumeScan(
+        actor: Actor,
+        localDate: LocalDate,
+        scanSessionId: UUID?,
+    ): Int?
+
+    suspend fun grantAdBonus(actor: Actor, localDate: LocalDate): BonusResult
+
+    suspend fun getScansLeft(actor: Actor, localDate: LocalDate): Int?
+
+    data class BonusResult(
+        val scansLeft: Int,
+        val bonusGranted: Boolean,
+    )
+}
+
+interface DiaryService {
+    suspend fun getDay(
+        actor: Actor,
+        date: LocalDate,
+        timezoneOffsetMinutes: Int,
+    ): DiaryDayResponse
+
+    suspend fun addEntry(
+        actor: Actor,
+        request: CreateDiaryEntryRequest,
+        localDate: LocalDate,
+    ): CreateDiaryEntryResponse
+
+    suspend fun deleteEntry(actor: Actor, entryId: UUID)
+
+    data class CreateDiaryEntryRequest(
+        val mealType: MealType,
+        val scanId: UUID? = null,
+        val dishes: List<DishDto>? = null,
+    )
+}
+
+interface SubscriptionService {
+    suspend fun getStatus(actor: Actor): SubscriptionStatus
+
+    suspend fun activatePro(deviceId: UUID, tariff: String, paidAt: Instant)
+
+    data class SubscriptionStatus(
+        val isPro: Boolean,
+        val proUntil: Instant?,
+        val accountLinked: Boolean,
+        val linkedProviders: List<OAuthProvider>,
+        val tariff: String?,
+    )
+}
+
+interface AuthService {
+    suspend fun linkVk(deviceId: UUID, vkAccessToken: String): AuthTokenResponse
+
+    suspend fun linkYandex(deviceId: UUID, yandexToken: String): AuthTokenResponse
+
+    suspend fun getMe(userId: UUID): MeResponse
+
+    fun issueJwt(userId: UUID, deviceId: UUID?): String
+}
+
+interface AccountMergeService {
+    suspend fun mergeDeviceToUser(deviceId: UUID, userId: UUID)
+}
+
+interface PaymentService {
+    suspend fun createTochkaPayment(deviceId: UUID, tariff: String = "pro_monthly_199"): PaymentCreateResponse
+
+    suspend fun handleTochkaWebhook(rawBody: String, signature: String?)
+
+    suspend fun renderPayPage(deviceId: UUID): String
+}
+
+// Response stubs — serialized in routes layer
+data class DiaryDayResponse(
+    val date: LocalDate,
+    val totalKcal: Int,
+    val scansLeft: Int?,
+    val isPro: Boolean,
+    val accountLinked: Boolean,
+    val linkedProviders: List<OAuthProvider>,
+    val entries: List<DiaryEntryDto>,
+)
+
+data class DiaryEntryDto(
+    val id: UUID,
+    val createdAt: Instant,
+    val mealType: MealType,
+    val totalKcal: Int,
+    val dishes: List<DishDto>,
+)
+
+data class CreateDiaryEntryResponse(
+    val entry: DiaryEntryDto,
+    val scansLeft: Int?,
+)
+
+data class AuthTokenResponse(
+    val accessToken: String,
+    val tokenType: String = "Bearer",
+    val expiresIn: Long,
+    val userId: UUID,
+    val isPro: Boolean,
+    val accountLinked: Boolean,
+    val linkedProviders: List<OAuthProvider>,
+)
+
+data class MeResponse(
+    val userId: UUID,
+    val isPro: Boolean,
+    val proUntil: Instant?,
+    val linkedProviders: List<OAuthProvider>,
+    val devices: List<UUID>,
+)
+
+data class PaymentCreateResponse(
+    val paymentUrl: String,
+    val paymentId: UUID,
+)
+
+interface DeviceRepository {
+    suspend fun findById(id: UUID): DeviceRecord?
+
+    suspend fun getOrCreate(id: UUID): DeviceRecord
+
+    suspend fun updateLastSeen(id: UUID)
+
+    suspend fun linkToUser(deviceId: UUID, userId: UUID)
+
+    suspend fun setProUntil(deviceId: UUID, until: Instant?)
+}
+
+interface ScanQuotaRepository {
+    suspend fun getOrCreate(deviceId: UUID, date: LocalDate): ScanQuotaRecord
+
+    suspend fun incrementUsed(deviceId: UUID, date: LocalDate)
+
+    suspend fun grantBonus(deviceId: UUID, date: LocalDate)
+}
+
+interface ScanSessionRepository {
+    suspend fun create(deviceId: UUID, dishes: List<DishDto>): UUID
+
+    suspend fun findById(id: UUID): ScanSessionRecord?
+
+    suspend fun markConsumed(id: UUID)
+}
+
+interface DiaryRepository {
+    suspend fun findEntriesByDevice(deviceId: UUID, date: LocalDate, tzOffsetMin: Int): List<DiaryEntryRecord>
+
+    suspend fun findEntriesByUser(userId: UUID, date: LocalDate, tzOffsetMin: Int): List<DiaryEntryRecord>
+
+    suspend fun insertEntry(entry: DiaryEntryRecord, dishes: List<DishDto>): DiaryEntryRecord
+
+    suspend fun deleteEntry(id: UUID)
+
+    suspend fun findEntry(id: UUID): DiaryEntryRecord?
+}
+
+interface UserRepository {
+    suspend fun create(): UUID
+
+    suspend fun findById(id: UUID): UserRecord?
+
+    suspend fun setProUntil(userId: UUID, until: Instant?)
+
+    suspend fun findDevices(userId: UUID): List<UUID>
+}
+
+interface OAuthRepository {
+    suspend fun findByProvider(provider: OAuthProvider, providerUserId: String): UUID?
+
+    suspend fun link(userId: UUID, provider: OAuthProvider, providerUserId: String)
+
+    suspend fun listProviders(userId: UUID): List<OAuthProvider>
+}
+
+interface PaymentRepository {
+    suspend fun create(payment: PaymentRecord): UUID
+
+    suspend fun markPaid(id: UUID, tochkaPaymentId: String, paidAt: Instant)
+
+    suspend fun findByTochkaId(tochkaPaymentId: String): PaymentRecord?
+}
+
+interface VisionBudgetRepository {
+    suspend fun getMonthCost(month: YearMonth): Int
+
+    suspend fun addCost(month: YearMonth, rub: Int)
+}
+
+interface VisionClient {
+    suspend fun analyzeFood(imageBytes: ByteArray): List<DishDto>
+}
+
+interface VkAuthClient {
+    suspend fun verifyToken(accessToken: String): VkUser
+
+    data class VkUser(val id: Long)
+}
+
+interface TochkaClient {
+    suspend fun createPayment(
+        amountKopecks: Int,
+        description: String,
+        metadata: Map<String, String>,
+    ): TochkaPayment
+
+    fun verifyWebhookSignature(body: String, signature: String?): Boolean
+
+    data class TochkaPayment(val id: String, val paymentUrl: String)
+}
+
+// Internal records (not API DTOs)
+data class DeviceRecord(
+    val id: UUID,
+    val userId: UUID?,
+    val proUntil: Instant?,
+)
+
+data class ScanQuotaRecord(
+    val deviceId: UUID,
+    val quotaDate: LocalDate,
+    val scansUsed: Int,
+    val bonusGranted: Boolean,
+    val bonusScans: Int,
+)
+
+data class ScanSessionRecord(
+    val id: UUID,
+    val deviceId: UUID,
+    val dishes: List<DishDto>,
+    val consumed: Boolean,
+)
+
+data class DiaryEntryRecord(
+    val id: UUID,
+    val deviceId: UUID,
+    val userId: UUID?,
+    val mealType: MealType,
+    val scanSessionId: UUID?,
+    val totalKcal: Int,
+    val createdAt: Instant,
+    val dishes: List<DishDto>,
+)
+
+data class UserRecord(
+    val id: UUID,
+    val proUntil: Instant?,
+)
+
+data class PaymentRecord(
+    val id: UUID,
+    val deviceId: UUID,
+    val userId: UUID?,
+    val tochkaPaymentId: String?,
+    val amountKopecks: Int,
+    val tariff: String,
+    val status: String,
+    val paidAt: Instant?,
+)
