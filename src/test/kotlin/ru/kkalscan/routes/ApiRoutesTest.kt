@@ -75,4 +75,22 @@ class ApiRoutesTest {
         val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals(5, body["scans_left"]!!.jsonPrimitive.int)
     }
+
+    @Test
+    fun `invalid scan_id returns bad request`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+        val response = client.post("/api/v1/diary/entries") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "meal_type": "lunch",
+                  "scan_id": "not-a-uuid"
+                }
+                """.trimIndent(),
+            )
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
 }

@@ -68,7 +68,7 @@ fun Application.configureRouting(module: AppModule) {
 
             post("/scan/bonus") {
                 val body = call.receive<ScanBonusRequest>()
-                val deviceId = UUID.fromString(body.device_id)
+                val deviceId = parseUuid(body.device_id, "device_id")
                 val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
                 val result = module.quotaService.grantAdBonus(actor, LocalDate.now())
                 call.respond(BonusResponse(result.scansLeft, result.bonusGranted))
@@ -85,11 +85,11 @@ fun Application.configureRouting(module: AppModule) {
 
             post("/diary/entries") {
                 val body = call.receive<DiaryEntryRequest>()
-                val deviceId = UUID.fromString(body.device_id)
+                val deviceId = parseUuid(body.device_id, "device_id")
                 val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
                 val request = DiaryService.CreateDiaryEntryRequest(
                     mealType = body.meal_type,
-                    scanId = body.scan_id?.let { UUID.fromString(it) },
+                    scanId = body.scan_id?.let { parseUuid(it, "scan_id") },
                     dishes = body.dishes,
                 )
                 val response = module.diaryService.addEntry(actor, request, LocalDate.now())
@@ -98,7 +98,7 @@ fun Application.configureRouting(module: AppModule) {
 
             delete("/diary/entries/{id}") {
                 val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
-                val entryId = UUID.fromString(call.parameters["id"] ?: throw BadRequestException("id обязателен"))
+                val entryId = parseUuid(call.parameters["id"] ?: throw BadRequestException("id обязателен"), "id")
                 val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
                 module.diaryService.deleteEntry(actor, entryId)
                 call.respond(HttpStatusCode.NoContent)
@@ -112,7 +112,7 @@ fun Application.configureRouting(module: AppModule) {
 
             post("/auth/vk") {
                 val body = call.receive<VkAuthRequest>()
-                val response = module.authService.linkVk(UUID.fromString(body.device_id), body.access_token)
+                val response = module.authService.linkVk(parseUuid(body.device_id, "device_id"), body.access_token)
                 call.respond(
                     AuthTokenJson(
                         access_token = response.accessToken,
@@ -129,7 +129,7 @@ fun Application.configureRouting(module: AppModule) {
             post("/payments/tochka/create") {
                 val body = call.receive<PaymentCreateRequest>()
                 val response = module.paymentService.createTochkaPayment(
-                    UUID.fromString(body.device_id),
+                    parseUuid(body.device_id, "device_id"),
                     body.tariff,
                 )
                 call.respond(
@@ -155,3 +155,8 @@ private fun ApplicationCall.parseDeviceId(): UUID? {
     request.headers["X-Device-Id"]?.let { return runCatching { UUID.fromString(it) }.getOrNull() }
     return null
 }
+
+private fun parseUuid(value: String, field: String): UUID =
+    runCatching { UUID.fromString(value) }.getOrElse {
+        throw BadRequestException("Некорректный $field")
+    }
