@@ -164,6 +164,8 @@ interface DeviceRepository {
     suspend fun linkToUser(deviceId: UUID, userId: UUID)
 
     suspend fun setProUntil(deviceId: UUID, until: Instant?)
+
+    suspend fun findByUserId(userId: UUID): List<DeviceRecord>
 }
 
 interface ScanQuotaRepository {

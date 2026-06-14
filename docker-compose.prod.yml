@@ -2,7 +2,7 @@ services:
   kkalscan-api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     image: kkalscan-api:latest
     container_name: kkalscan-api
     restart: unless-stopped

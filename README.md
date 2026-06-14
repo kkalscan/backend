@@ -21,6 +21,35 @@ REST API для [KkalScan](https://github.com/kkalscan/mobile): скан еды 
 | [docs/auth.md](docs/auth.md) | JWT, VK ID, merge device → user |
 | [docs/deployment.md](docs/deployment.md) | Docker, env, деплой на 91.207.75.72 |
 
+## CI/CD
+
+GitHub Actions: `.github/workflows/ci-cd.yml`
+
+| Job | Trigger | Действие |
+|-----|---------|----------|
+| **test** | push/PR → `main`, `master` | `./gradlew test shadowJar` |
+| **deploy** | push → `main`, `master` | SCP JAR + `docker compose -f docker-compose.prod.yml up -d --build` |
+
+### Secrets (GitHub → Settings → Secrets)
+
+| Secret | Пример |
+|--------|--------|
+| `DEPLOY_HOST` | `91.207.75.72` |
+| `DEPLOY_USER` | `ubuntu` |
+| `DEPLOY_SSH_KEY` | private key |
+| `DEPLOY_PATH` | `/opt/kkalscan` (optional) |
+
+Без secrets deploy job **пропускается** с сообщением (тесты всё равно бегут).
+
+### Ручной деплой
+
+```bash
+./gradlew shadowJar
+cp build/libs/*-all.jar app.jar
+scp app.jar docker-compose.prod.yml Dockerfile.prod user@91.207.75.72:/opt/kkalscan/
+ssh user@91.207.75.72 "cd /opt/kkalscan && docker compose -f docker-compose.prod.yml up -d --build"
+```
+
 ## Быстрый старт (dev)
 
 ```bash

@@ -4,6 +4,6 @@ out/
 .idea/
 *.iml
 .env
-data/
+/data/
 *.db
 *.log

@@ -4,16 +4,19 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
+import ru.kkalscan.plugins.configureStatusPages
+import ru.kkalscan.routes.configureRouting
 
 fun main() {
     embeddedServer(Netty, port = AppConfig.port, module = Application::module).start(wait = true)
 }
 
 fun Application.module() {
+    val module = AppModule()
+
     install(ContentNegotiation) {
         json(
             Json {
@@ -23,26 +26,21 @@ fun Application.module() {
             },
         )
     }
+    install(CallLogging)
+    configureStatusPages()
+    configureRouting(module)
+}
 
-    routing {
-        get("/health") {
-            call.respond(
-                mapOf(
-                    "status" to "ok",
-                    "version" to "0.1.0-SNAPSHOT",
-                ),
-            )
-        }
-
-        route("/api/v1") {
-            // TODO: scanRoutes(), diaryRoutes(), subscriptionRoutes(), authRoutes(), paymentRoutes()
-            get {
-                call.respond(mapOf("service" to "kkalscan-api", "api" to "v1"))
-            }
-        }
-
-        get("/privacy") {
-            call.respondText("KkalScan privacy policy — placeholder", contentType = io.ktor.http.ContentType.Text.Plain)
-        }
+fun Application.testModule(customModule: AppModule = AppModule()) {
+    install(ContentNegotiation) {
+        json(
+            Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+                isLenient = true
+            },
+        )
     }
+    configureStatusPages()
+    configureRouting(customModule)
 }

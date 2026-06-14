@@ -1,0 +1,73 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon
+
+      - name: Build fat JAR
+        run: ./gradlew shadowJar --no-daemon
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kkalscan-api-jar
+          path: build/libs/*-all.jar
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build fat JAR
+        run: |
+          chmod +x gradlew
+          ./gradlew shadowJar --no-daemon
+
+      - name: Deploy to production
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$SSH_KEY" ]; then
+            echo "Deploy secrets not configured — skipping remote deploy."
+            echo "Configure DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY in GitHub repo secrets."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          JAR=$(ls build/libs/*-all.jar | head -1)
+          cp "$JAR" app.jar
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no app.jar docker-compose.prod.yml Dockerfile.prod "$SSH_USER@$SSH_HOST:${DEPLOY_PATH:-/opt/kkalscan}/"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" \
+            "cd ${DEPLOY_PATH:-/opt/kkalscan} && docker compose -f docker-compose.prod.yml up -d --build"
