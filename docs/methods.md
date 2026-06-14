@@ -388,7 +388,7 @@ interface VisionClient {
 }
 ```
 
-Implementations: `GeminiVisionClient`, `OpenAiVisionClient` (config switch)
+Implementations: `OpenRouterVisionClient` (prod), `StubVisionClient` (dev/test). Model: `OPENROUTER_MODEL`.
 
 **Prompt contract:** JSON array, Russian names, fields: name, grams, kcal, protein, fat, carbs
 
