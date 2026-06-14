@@ -37,6 +37,25 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_ISSUER: ${{ secrets.JWT_ISSUER }}
+      JWT_TTL_SECONDS: ${{ secrets.JWT_TTL_SECONDS }}
+      VISION_PROVIDER: ${{ secrets.VISION_PROVIDER }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      VISION_MONTHLY_BUDGET_RUB: ${{ secrets.VISION_MONTHLY_BUDGET_RUB }}
+      VISION_COST_PER_REQUEST_RUB: ${{ secrets.VISION_COST_PER_REQUEST_RUB }}
+      TOCHKA_MERCHANT_ID: ${{ secrets.TOCHKA_MERCHANT_ID }}
+      TOCHKA_SECRET_KEY: ${{ secrets.TOCHKA_SECRET_KEY }}
+      TOCHKA_WEBHOOK_SECRET: ${{ secrets.TOCHKA_WEBHOOK_SECRET }}
+      VK_APP_ID: ${{ secrets.VK_APP_ID }}
+      VK_SERVICE_TOKEN: ${{ secrets.VK_SERVICE_TOKEN }}
+      PORT: ${{ secrets.PORT }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -53,21 +72,37 @@ jobs:
 
       - name: Deploy to production
         env:
-          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
-          SSH_USER: ${{ secrets.DEPLOY_USER }}
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$SSH_KEY" ]; then
+          set -euo pipefail
+          if [ -z "${DEPLOY_HOST}" ] || [ -z "${DEPLOY_USER}" ] || [ -z "${SSH_KEY}" ]; then
             echo "Deploy secrets not configured — skipping remote deploy."
-            echo "Configure DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY in GitHub repo secrets."
+            echo "Required: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, JWT_SECRET"
+            echo "See docs/github-secrets.md"
             exit 0
           fi
+          if [ -z "${JWT_SECRET}" ]; then
+            echo "JWT_SECRET is required for production deploy."
+            exit 1
+          fi
+
+          chmod +x scripts/generate-env.sh
+          ./scripts/generate-env.sh > .env.production
+
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+
+          REMOTE_PATH="${DEPLOY_PATH:-/opt/kkalscan}"
           JAR=$(ls build/libs/*-all.jar | head -1)
           cp "$JAR" app.jar
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no app.jar docker-compose.prod.yml Dockerfile.prod "$SSH_USER@$SSH_HOST:${DEPLOY_PATH:-/opt/kkalscan}/"
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" \
-            "cd ${DEPLOY_PATH:-/opt/kkalscan} && docker compose -f docker-compose.prod.yml up -d --build"
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            app.jar .env.production docker-compose.prod.yml Dockerfile.prod \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${REMOTE_PATH}/"
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd ${REMOTE_PATH} && mv .env.production .env && docker compose -f docker-compose.prod.yml up -d --build"
+
+          echo "Deployed to ${DEPLOY_HOST}:${REMOTE_PATH}"

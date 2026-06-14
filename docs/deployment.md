@@ -51,14 +51,12 @@ volumes:
 
 ## 2. Сборка и деплой
 
-```bash
-# локально
-./gradlew shadowJar
-docker build -t kkalscan-api:latest .
+**Production:** все секреты в [GitHub Actions Secrets](./github-secrets.md). CI генерирует `.env` и деплоит на push в `main`.
 
-# на сервере
-scp docker-compose.yml .env user@91.207.75.72:/opt/kkalscan/
-docker compose up -d
+```bash
+# Локально — только для dev
+cp .env.example .env
+./gradlew shadowJar && ./gradlew run
 ```
 
 ---
@@ -71,27 +69,12 @@ sudo ufw allow 8080/tcp
 
 ---
 
-## 4. .env.example
+## 4. Переменные окружения
 
-```env
-PORT=8080
-DATABASE_URL=jdbc:sqlite:/data/kkalscan.db
+Шаблон для локальной разработки: `.env.example`  
+Production: **GitHub Secrets** → `scripts/generate-env.sh` → `.env` на сервере.
 
-JWT_SECRET=change-me-min-32-chars
-JWT_ISSUER=kkalscan
-
-VISION_PROVIDER=gemini
-GEMINI_API_KEY=
-OPENAI_API_KEY=
-VISION_MONTHLY_BUDGET_RUB=5000
-
-TOCHKA_MERCHANT_ID=
-TOCHKA_SECRET_KEY=
-TOCHKA_WEBHOOK_SECRET=
-
-VK_APP_ID=
-VK_SERVICE_TOKEN=
-```
+Полный список: [github-secrets.md](./github-secrets.md)
 
 ---
 
@@ -133,3 +116,4 @@ docker exec kkalscan-api sqlite3 /data/kkalscan.db ".backup /data/backup.db"
 | Версия | Дата | Изменения |
 |--------|------|-----------|
 | 1.0 | 2026-06-14 | Первая версия |
+| 1.1 | 2026-06-14 | Секреты через GitHub Actions — [github-secrets.md](./github-secrets.md) |

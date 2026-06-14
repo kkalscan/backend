@@ -20,6 +20,7 @@ REST API для [KkalScan](https://github.com/kkalscan/mobile): скан еды 
 | [docs/scan-quota.md](docs/scan-quota.md) | Лимиты сканов и бизнес-правила |
 | [docs/auth.md](docs/auth.md) | JWT, VK ID, merge device → user |
 | [docs/deployment.md](docs/deployment.md) | Docker, env, деплой на 91.207.75.72 |
+| [docs/github-secrets.md](docs/github-secrets.md) | **Все secrets для GitHub Actions** |
 
 ## CI/CD
 
@@ -28,20 +29,13 @@ GitHub Actions: `.github/workflows/ci-cd.yml`
 | Job | Trigger | Действие |
 |-----|---------|----------|
 | **test** | push/PR → `main`, `master` | `./gradlew test shadowJar` |
-| **deploy** | push → `main`, `master` | SCP JAR + `docker compose -f docker-compose.prod.yml up -d --build` |
+| **deploy** | push → `main`, `master` | secrets → `.env` → SCP → `docker compose up` |
 
-### Secrets (GitHub → Settings → Secrets)
+**Все production-секреты — только в GitHub Actions.** Список: [docs/github-secrets.md](docs/github-secrets.md)
 
-| Secret | Пример |
-|--------|--------|
-| `DEPLOY_HOST` | `91.207.75.72` |
-| `DEPLOY_USER` | `ubuntu` |
-| `DEPLOY_SSH_KEY` | private key |
-| `DEPLOY_PATH` | `/opt/kkalscan` (optional) |
+Минимум для деплоя: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `JWT_SECRET`.
 
-Без secrets deploy job **пропускается** с сообщением (тесты всё равно бегут).
-
-### Ручной деплой
+### Ручной деплой (без CI)
 
 ```bash
 ./gradlew shadowJar
