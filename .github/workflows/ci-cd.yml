@@ -78,15 +78,15 @@ jobs:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${DEPLOY_HOST}" ] || [ -z "${DEPLOY_USER}" ] || [ -z "${SSH_KEY}" ]; then
-            echo "Deploy secrets not configured — skipping remote deploy."
-            echo "Required: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, JWT_SECRET"
+          missing=()
+          [ -z "${DEPLOY_HOST:-}" ] && missing+=("DEPLOY_HOST")
+          [ -z "${DEPLOY_USER:-}" ] && missing+=("DEPLOY_USER")
+          [ -z "${SSH_KEY:-}" ] && missing+=("DEPLOY_SSH_KEY")
+          [ -z "${JWT_SECRET:-}" ] && missing+=("JWT_SECRET")
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Deploy skipped — missing secrets: ${missing[*]}"
             echo "See docs/github-secrets.md"
             exit 0
-          fi
-          if [ -z "${JWT_SECRET}" ]; then
-            echo "JWT_SECRET is required for production deploy."
-            exit 1
           fi
 
           chmod +x scripts/generate-env.sh
