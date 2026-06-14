@@ -46,11 +46,11 @@ class ScanServiceImpl(
         val dishes = try {
             visionClient.analyzeFood(photoBytes)
         } catch (e: Exception) {
-            throw VisionUnavailableException(e)
+            throw VisionUnavailableException(cause = e)
         }
 
         if (dishes.isEmpty()) {
-            throw VisionUnavailableException()
+            throw VisionUnavailableException("На фото не видно еду. Сфотографируйте тарелку крупнее.")
         }
 
         visionBudgetRepository.addCost(month, AppConfig.visionCostPerRequestRub)

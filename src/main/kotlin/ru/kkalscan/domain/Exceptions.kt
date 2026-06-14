@@ -27,8 +27,11 @@ class UnauthorizedException(message: String = "Не авторизован") :
 class VisionBudgetExceededException :
     DomainException("vision_budget_exceeded", "Сервис временно недоступен, попробуйте позже")
 
-class VisionUnavailableException(cause: Throwable? = null) :
-    DomainException("vision_unavailable", "Не удалось распознать фото, попробуйте ещё раз") {
+class VisionUnavailableException(
+    message: String = "Не удалось распознать фото, попробуйте ещё раз",
+    cause: Throwable? = null,
+) :
+    DomainException("vision_unavailable", message) {
     init {
         cause?.let { initCause(it) }
     }

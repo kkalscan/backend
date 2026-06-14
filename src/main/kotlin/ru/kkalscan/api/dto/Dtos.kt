@@ -18,6 +18,20 @@ data class ApiErrorResponse(
 )
 
 @Serializable
+data class HealthResponse(
+    val status: String,
+    val version: String,
+    val vision: VisionHealthInfo,
+)
+
+@Serializable
+data class VisionHealthInfo(
+    val provider: String,
+    val api_key_configured: Boolean,
+    val model: String? = null,
+)
+
+@Serializable
 data class ScanResponse(
     val scan_id: String,
     val dishes: List<DishDto>,

@@ -6,8 +6,11 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import ru.kkalscan.AppConfig
 import ru.kkalscan.AppModule
 import ru.kkalscan.api.dto.AuthTokenJson
+import ru.kkalscan.api.dto.HealthResponse
+import ru.kkalscan.api.dto.VisionHealthInfo
 import ru.kkalscan.api.dto.BonusResponse
 import ru.kkalscan.api.dto.DiaryEntryRequest
 import ru.kkalscan.api.dto.PaymentCreateJson
@@ -27,7 +30,17 @@ import java.util.UUID
 fun Application.configureRouting(module: AppModule) {
     routing {
         get("/health") {
-            call.respond(mapOf("status" to "ok", "version" to "0.1.0-SNAPSHOT"))
+            call.respond(
+                HealthResponse(
+                    status = "ok",
+                    version = "0.1.0-SNAPSHOT",
+                    vision = VisionHealthInfo(
+                        provider = AppConfig.visionProvider,
+                        api_key_configured = AppConfig.openRouterApiKey.isNotBlank(),
+                        model = AppConfig.openRouterModel.takeIf { AppConfig.visionProvider == "openrouter" },
+                    ),
+                ),
+            )
         }
 
         get("/privacy") {

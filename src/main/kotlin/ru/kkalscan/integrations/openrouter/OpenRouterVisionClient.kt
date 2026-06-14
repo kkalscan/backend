@@ -35,29 +35,28 @@ class OpenRouterVisionClient(
             }
             if (!response.status.isSuccess()) {
                 val errBody = response.bodyAsText()
-                val hint = when {
-                    errBody.contains("model", ignoreCase = true) &&
-                        (errBody.contains("not found", ignoreCase = true) || errBody.contains("does not exist", ignoreCase = true)) ->
-                        "Check OPENROUTER_MODEL (current: $model). See https://openrouter.ai/models"
-                    else -> null
-                }
-                throw VisionUnavailableException(
-                    RuntimeException(
-                        buildString {
-                            append("OpenRouter HTTP ${response.status}: $errBody")
-                            hint?.let { append(" — $it") }
-                        },
-                    ),
-                )
+                val message = openRouterErrorMessage(response.status.value, errBody, model)
+                throw VisionUnavailableException(message, RuntimeException("OpenRouter HTTP ${response.status}: $errBody"))
             }
             response.bodyAsText()
         } catch (e: VisionUnavailableException) {
             throw e
         } catch (e: Exception) {
-            throw VisionUnavailableException(e)
+            throw VisionUnavailableException(cause = e)
         }
 
         val content = parseOpenRouterResponse(responseText, json)
         return VisionResponseParser.parse(content)
+    }
+
+    private fun openRouterErrorMessage(status: Int, body: String, model: String): String = when (status) {
+        401 -> "OpenRouter: неверный API-ключ. Проверьте OPENROUTER_API_KEY."
+        402 -> "OpenRouter: недостаточно средств на балансе."
+        404 -> "OpenRouter: модель $model не найдена. Обновите OPENROUTER_MODEL."
+        else -> if (body.contains("model", ignoreCase = true)) {
+            "OpenRouter: проблема с моделью $model."
+        } else {
+            "Не удалось распознать фото, попробуйте ещё раз"
+        }
     }
 }
