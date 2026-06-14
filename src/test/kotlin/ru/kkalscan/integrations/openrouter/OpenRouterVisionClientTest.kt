@@ -31,7 +31,7 @@ class OpenRouterVisionClientTest {
         val client = OpenRouterVisionClient(
             httpClient = HttpClient(mockEngine),
             apiKey = "test-key",
-            model = "google/gemini-2.0-flash-001",
+            model = "google/gemini-2.5-flash",
             baseUrl = "https://openrouter.ai/api/v1",
         )
 

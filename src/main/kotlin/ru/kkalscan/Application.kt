@@ -17,6 +17,12 @@ fun main() {
 fun Application.module() {
     val module = AppModule()
 
+    environment.log.info(
+        "Vision: provider={}, model={}",
+        AppConfig.visionProvider,
+        if (AppConfig.visionProvider == "openrouter") AppConfig.openRouterModel else "n/a",
+    )
+
     install(ContentNegotiation) {
         json(
             Json {

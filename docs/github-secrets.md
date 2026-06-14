@@ -24,7 +24,7 @@
 |--------|---------|----------|
 | `VISION_PROVIDER` | `stub` | `stub` — тест без API; `openrouter` — prod |
 | `OPENROUTER_API_KEY` | — | Ключ [openrouter.ai/keys](https://openrouter.ai/keys) |
-| `OPENROUTER_MODEL` | `google/gemini-2.0-flash-001` | Любая vision-модель OpenRouter |
+| `OPENROUTER_MODEL` | `google/gemini-2.5-flash` | Vision-модель с [openrouter.ai/models](https://openrouter.ai/models) |
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Обычно не менять |
 | `OPENROUTER_APP_URL` | `http://91.207.75.72:8080` | Referer для OpenRouter |
 | `OPENROUTER_APP_NAME` | `KkalScan` | X-Title для OpenRouter |
@@ -34,9 +34,9 @@
 **Смена модели:** поменяй только `OPENROUTER_MODEL`, код не трогаем.
 
 Примеры моделей:
-- `google/gemini-2.0-flash-001` — дёшево, быстро
+- `google/gemini-2.5-flash` — рекомендуется (vision, дёшево)
 - `openai/gpt-4o-mini` — альтернатива
-- `anthropic/claude-3.5-haiku` — если нужен Claude
+- ~~`google/gemini-2.0-flash-001`~~ — **удалена** с OpenRouter, не использовать
 
 `GEMINI_API_KEY` / `OPENAI_API_KEY` **не используются** — всё через OpenRouter.
 
@@ -69,7 +69,7 @@
 ```env
 VISION_PROVIDER=openrouter
 OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=google/gemini-2.0-flash-001
+OPENROUTER_MODEL=google/gemini-2.5-flash
 ```
 
 Dev / CI tests:

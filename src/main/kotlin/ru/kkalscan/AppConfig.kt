@@ -12,9 +12,24 @@ object AppConfig {
     val visionMonthlyBudgetRub: Int = System.getenv("VISION_MONTHLY_BUDGET_RUB")?.toIntOrNull() ?: 5000
     val visionCostPerRequestRub: Int = System.getenv("VISION_COST_PER_REQUEST_RUB")?.toIntOrNull() ?: 1
 
-    val openRouterApiKey: String = System.getenv("OPENROUTER_API_KEY") ?: ""
-    val openRouterModel: String = System.getenv("OPENROUTER_MODEL") ?: "google/gemini-2.0-flash-001"
-    val openRouterBaseUrl: String = System.getenv("OPENROUTER_BASE_URL") ?: "https://openrouter.ai/api/v1"
-    val openRouterAppUrl: String = System.getenv("OPENROUTER_APP_URL") ?: "http://91.207.75.72:8080"
-    val openRouterAppName: String = System.getenv("OPENROUTER_APP_NAME") ?: "KkalScan"
+    val openRouterApiKey: String = System.getenv("OPENROUTER_API_KEY").orEmpty().trim()
+    /** Must exist on https://openrouter.ai/models — `google/gemini-2.0-flash-001` was removed. */
+    val openRouterModel: String = normalizeOpenRouterModel(
+        System.getenv("OPENROUTER_MODEL")?.trim().takeUnless { it.isNullOrBlank() }
+            ?: "google/gemini-2.5-flash",
+    )
+    val openRouterBaseUrl: String = System.getenv("OPENROUTER_BASE_URL")?.trim().takeUnless { it.isNullOrBlank() }
+        ?: "https://openrouter.ai/api/v1"
+    val openRouterAppUrl: String = System.getenv("OPENROUTER_APP_URL")?.trim().takeUnless { it.isNullOrBlank() }
+        ?: "http://91.207.75.72:8080"
+    val openRouterAppName: String = System.getenv("OPENROUTER_APP_NAME")?.trim().takeUnless { it.isNullOrBlank() }
+        ?: "KkalScan"
 }
+
+internal fun normalizeOpenRouterModel(model: String): String =
+    when (model) {
+        "google/gemini-2.0-flash-001",
+        "google/gemini-2.0-flash-exp:free",
+        -> "google/gemini-2.5-flash"
+        else -> model
+    }

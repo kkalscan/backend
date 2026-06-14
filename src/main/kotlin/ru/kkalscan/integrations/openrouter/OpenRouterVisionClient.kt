@@ -35,8 +35,19 @@ class OpenRouterVisionClient(
             }
             if (!response.status.isSuccess()) {
                 val errBody = response.bodyAsText()
+                val hint = when {
+                    errBody.contains("model", ignoreCase = true) &&
+                        (errBody.contains("not found", ignoreCase = true) || errBody.contains("does not exist", ignoreCase = true)) ->
+                        "Check OPENROUTER_MODEL (current: $model). See https://openrouter.ai/models"
+                    else -> null
+                }
                 throw VisionUnavailableException(
-                    RuntimeException("OpenRouter HTTP ${response.status}: $errBody"),
+                    RuntimeException(
+                        buildString {
+                            append("OpenRouter HTTP ${response.status}: $errBody")
+                            hint?.let { append(" — $it") }
+                        },
+                    ),
                 )
             }
             response.bodyAsText()

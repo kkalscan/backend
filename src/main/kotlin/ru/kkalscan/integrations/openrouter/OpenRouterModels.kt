@@ -45,6 +45,7 @@ internal object VisionResponseParser {
 internal object OpenRouterRequestBuilder {
     fun build(model: String, imageBase64: String): JsonObject = buildJsonObject {
         put("model", JsonPrimitive(model))
+        put("response_format", buildJsonObject { put("type", JsonPrimitive("json_object")) })
         put(
             "messages",
             buildJsonArray {

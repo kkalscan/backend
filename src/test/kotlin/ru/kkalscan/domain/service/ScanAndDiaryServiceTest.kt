@@ -45,6 +45,23 @@ class ScanAndDiaryServiceTest {
     }
 
     @Test
+    fun `diary entry with manual dishes consumes quota`() = runTest {
+        val entry = diaryService.addEntry(
+            actor,
+            DiaryService.CreateDiaryEntryRequest(
+                mealType = MealType.breakfast,
+                dishes = listOf(
+                    ru.kkalscan.domain.model.DishDto("Овсянка", 200, 150, 5.0, 3.0, 27.0),
+                ),
+            ),
+            date,
+        )
+
+        assertEquals(150, entry.entry.totalKcal)
+        assertEquals(2, entry.scansLeft)
+    }
+
+    @Test
     fun `fourth scan blocked when quota exhausted`() = runTest {
         repeat(3) {
             val scan = scanService.analyzePhoto(actor, photo, date, 180)
