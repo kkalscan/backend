@@ -1,0 +1,14 @@
+services:
+  kkalscan-api:
+    build: .
+    container_name: kkalscan-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - kkalscan-data:/data
+    env_file:
+      - .env
+
+volumes:
+  kkalscan-data:
