@@ -1,11 +1,13 @@
 package ru.kkalscan
 
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.cors.routing.*
 import kotlinx.serialization.json.Json
 import ru.kkalscan.plugins.configureStatusPages
 import ru.kkalscan.routes.configureRouting
@@ -33,6 +35,18 @@ fun Application.module() {
         )
     }
     install(CallLogging)
+    install(CORS) {
+        anyHost()
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)
+        allowHeader("X-Device-Id")
+        allowMethod(HttpMethod.Options)
+        allowMethod(HttpMethod.Get)
+        allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
+        allowMethod(HttpMethod.Patch)
+    }
     configureStatusPages()
     configureRouting(module)
 }
@@ -46,6 +60,18 @@ fun Application.testModule(customModule: AppModule = AppModule()) {
                 isLenient = true
             },
         )
+    }
+    install(CORS) {
+        anyHost()
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)
+        allowHeader("X-Device-Id")
+        allowMethod(HttpMethod.Options)
+        allowMethod(HttpMethod.Get)
+        allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
+        allowMethod(HttpMethod.Patch)
     }
     configureStatusPages()
     configureRouting(customModule)
