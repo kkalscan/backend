@@ -18,12 +18,13 @@ import ru.kkalscan.domain.service.QuotaServiceImpl
 import ru.kkalscan.domain.service.ScanServiceImpl
 import ru.kkalscan.domain.service.SubscriptionServiceImpl
 import ru.kkalscan.integrations.StubTochkaClient
-import ru.kkalscan.integrations.StubVisionClient
 import ru.kkalscan.integrations.StubVkAuthClient
+import ru.kkalscan.integrations.VisionClientFactory
+import ru.kkalscan.domain.port.VisionClient
 
 data class AppModule(
     val repos: InMemoryRepositories = InMemoryRepositories(),
-    val visionClient: StubVisionClient = StubVisionClient(),
+    val visionClient: VisionClient = VisionClientFactory.create(),
     val vkAuthClient: StubVkAuthClient = StubVkAuthClient(),
     val tochkaClient: StubTochkaClient = StubTochkaClient(),
 ) {

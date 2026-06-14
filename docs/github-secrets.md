@@ -3,7 +3,7 @@
 Все production-секреты хранятся в **GitHub → Settings → Secrets and variables → Actions**  
 репозитория [kkalscan/backend](https://github.com/kkalscan/backend).
 
-**В git и на диске локально секреты не коммитим.** При деплое CI генерирует `.env` на сервере из secrets.
+**В git секреты не коммитим.** При деплое CI генерирует `.env` на сервере.
 
 ---
 
@@ -11,92 +11,78 @@
 
 | Secret | Описание | Пример |
 |--------|----------|--------|
-| `DEPLOY_HOST` | IP или hostname сервера | `91.207.75.72` |
+| `DEPLOY_HOST` | IP сервера | `91.207.75.72` |
 | `DEPLOY_USER` | SSH-пользователь | `ubuntu` |
-| `DEPLOY_SSH_KEY` | Приватный SSH-ключ (PEM целиком) | `-----BEGIN OPENSSH PRIVATE KEY-----…` |
-| `JWT_SECRET` | HS256, минимум 32 символа | `openssl rand -base64 32` |
+| `DEPLOY_SSH_KEY` | Приватный SSH-ключ (PEM) | `-----BEGIN OPENSSH…` |
+| `JWT_SECRET` | HS256, ≥32 символов | `openssl rand -base64 32` |
+
+---
+
+## Vision (OpenRouter)
+
+| Secret | Default | Описание |
+|--------|---------|----------|
+| `VISION_PROVIDER` | `stub` | `stub` — тест без API; `openrouter` — prod |
+| `OPENROUTER_API_KEY` | — | Ключ [openrouter.ai/keys](https://openrouter.ai/keys) |
+| `OPENROUTER_MODEL` | `google/gemini-2.0-flash-001` | Любая vision-модель OpenRouter |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Обычно не менять |
+| `OPENROUTER_APP_URL` | `http://91.207.75.72:8080` | Referer для OpenRouter |
+| `OPENROUTER_APP_NAME` | `KkalScan` | X-Title для OpenRouter |
+| `VISION_MONTHLY_BUDGET_RUB` | `5000` | Hard stop расходов |
+| `VISION_COST_PER_REQUEST_RUB` | `1` | Учёт в budget |
+
+**Смена модели:** поменяй только `OPENROUTER_MODEL`, код не трогаем.
+
+Примеры моделей:
+- `google/gemini-2.0-flash-001` — дёшево, быстро
+- `openai/gpt-4o-mini` — альтернатива
+- `anthropic/claude-3.5-haiku` — если нужен Claude
+
+`GEMINI_API_KEY` / `OPENAI_API_KEY` **не используются** — всё через OpenRouter.
 
 ---
 
 ## Деплой (опционально)
 
-| Secret | Default | Описание |
-|--------|---------|----------|
-| `DEPLOY_PATH` | `/opt/kkalscan` | Папка на сервере |
+| Secret | Default |
+|--------|---------|
+| `DEPLOY_PATH` | `/opt/kkalscan` |
 
 ---
 
-## Приложение (рекомендуется для prod)
+## Платежи и auth
 
-| Secret | Default | Описание |
-|--------|---------|----------|
-| `JWT_ISSUER` | `kkalscan` | Issuer JWT |
-| `JWT_TTL_SECONDS` | `2592000` | TTL JWT (30 дней) |
-| `VISION_PROVIDER` | `stub` | `stub` \| `gemini` \| `openai` |
-| `GEMINI_API_KEY` | — | Ключ Gemini (если provider=gemini) |
-| `OPENAI_API_KEY` | — | Ключ OpenAI (если provider=openai) |
-| `VISION_MONTHLY_BUDGET_RUB` | `5000` | Потолок расходов Vision |
-| `VISION_COST_PER_REQUEST_RUB` | `1` | Учёт стоимости за запрос |
-| `TOCHKA_MERCHANT_ID` | — | Точка API |
-| `TOCHKA_SECRET_KEY` | — | Точка API |
-| `TOCHKA_WEBHOOK_SECRET` | — | Подпись webhook |
-| `VK_APP_ID` | — | VK ID |
-| `VK_SERVICE_TOKEN` | — | VK verify token |
+| Secret | Описание |
+|--------|----------|
+| `TOCHKA_MERCHANT_ID` | Точка API |
+| `TOCHKA_SECRET_KEY` | Точка API |
+| `TOCHKA_WEBHOOK_SECRET` | Webhook |
+| `VK_APP_ID` | VK ID |
+| `VK_SERVICE_TOKEN` | VK verify |
+| `JWT_ISSUER` | `kkalscan` |
+| `JWT_TTL_SECONDS` | `2592000` |
 
 ---
 
-## Инфраструктура (обычно не менять)
+## Prod checklist
 
-| Secret | Default | Описание |
-|--------|---------|----------|
-| `PORT` | `8080` | Порт контейнера |
-| `DATABASE_URL` | `jdbc:sqlite:/data/kkalscan.db` | SQLite в Docker volume |
-
----
-
-## Как это работает
-
+```env
+VISION_PROVIDER=openrouter
+OPENROUTER_API_KEY=sk-or-v1-...
+OPENROUTER_MODEL=google/gemini-2.0-flash-001
 ```
-push main
-    ↓
-GitHub Actions: secrets → scripts/generate-env.sh → .env
-    ↓
-SCP: app.jar + .env + docker-compose.prod.yml → сервер
-    ↓
-docker compose up -d --build
+
+Dev / CI tests:
+```env
+VISION_PROVIDER=stub
 ```
 
 ---
 
-## Первичная настройка сервера (один раз)
-
-```bash
-# На сервере — только Docker, без ручного .env
-sudo mkdir -p /opt/kkalscan
-sudo ufw allow 8080/tcp
-
-# Публичный ключ от DEPLOY_SSH_KEY → ~/.ssh/authorized_keys
-```
-
-После добавления secrets в GitHub — любой `git push origin main` задеплоит приложение с актуальным `.env`.
-
----
-
-## Локальная разработка
-
-Секреты GitHub **не** подтягиваются локально. Скопируй шаблон:
+## Локально
 
 ```bash
 cp .env.example .env
-# заполни вручную или export + ./scripts/generate-env.sh > .env
+# VISION_PROVIDER=stub  или openrouter + OPENROUTER_API_KEY
+./gradlew run
 ```
-
----
-
-## Чеклист перед первым деплоем
-
-- [ ] `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`
-- [ ] `JWT_SECRET` (уникальный, ≥32 символов)
-- [ ] `VISION_PROVIDER` + ключ API (или `stub` для теста)
-- [ ] SSH-ключ добавлен в `authorized_keys` на сервере
-- [ ] Порт 8080 открыт

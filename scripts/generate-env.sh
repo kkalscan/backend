@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Generates .env for production from environment variables (GitHub Actions secrets).
-# Usage: export JWT_SECRET=... GEMINI_API_KEY=... && ./scripts/generate-env.sh > .env
 set -euo pipefail
 
 cat <<EOF
@@ -12,8 +11,11 @@ JWT_ISSUER=${JWT_ISSUER:-kkalscan}
 JWT_TTL_SECONDS=${JWT_TTL_SECONDS:-2592000}
 
 VISION_PROVIDER=${VISION_PROVIDER:-stub}
-GEMINI_API_KEY=${GEMINI_API_KEY:-}
-OPENAI_API_KEY=${OPENAI_API_KEY:-}
+OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemini-2.0-flash-001}
+OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+OPENROUTER_APP_URL=${OPENROUTER_APP_URL:-http://91.207.75.72:8080}
+OPENROUTER_APP_NAME=${OPENROUTER_APP_NAME:-KkalScan}
 VISION_MONTHLY_BUDGET_RUB=${VISION_MONTHLY_BUDGET_RUB:-5000}
 VISION_COST_PER_REQUEST_RUB=${VISION_COST_PER_REQUEST_RUB:-1}
 
