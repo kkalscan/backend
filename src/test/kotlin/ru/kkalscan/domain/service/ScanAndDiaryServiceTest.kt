@@ -34,6 +34,24 @@ class ScanAndDiaryServiceTest {
     }
 
     @Test
+    fun `diary entry with edited dishes from scan uses client values`() = runTest {
+        val scan = scanService.analyzePhoto(actor, photo, date, 180)
+        val edited = scan.dishes.map { it.copy(grams = 150, kcal = 120) }
+        val entry = diaryService.addEntry(
+            actor,
+            DiaryService.CreateDiaryEntryRequest(
+                mealType = MealType.lunch,
+                scanId = scan.scanId,
+                dishes = edited,
+            ),
+            date,
+        )
+        assertEquals(120, entry.entry.totalKcal)
+        assertEquals(150, entry.entry.dishes.single().grams)
+        assertEquals(2, entry.scansLeft)
+    }
+
+    @Test
     fun `diary entry consumes scan quota`() = runTest {
         val scan = scanService.analyzePhoto(actor, photo, date, 180)
         val entry = diaryService.addEntry(

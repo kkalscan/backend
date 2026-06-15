@@ -38,11 +38,11 @@ class PaymentServiceTest {
 
     @Test
     fun `paid webhook activates pro`() = runTest {
-        service.createTochkaPayment(deviceId, SubscriptionServiceImpl.TARIFF)
-        val tochkaId = "tochka_${deviceId.toString().take(8)}"
+        val response = service.createTochkaPayment(deviceId, SubscriptionServiceImpl.TARIFF)
+        val tochkaId = "tochka_${response.paymentId.toString().take(8)}"
 
         service.handleTochkaWebhook(
-            """{"payment_id":"$tochkaId","status":"paid"}""",
+            """{"payment_id":"$tochkaId","payment_link_id":"${response.paymentId}","status":"paid"}""",
             "test-signature",
         )
 
@@ -60,11 +60,11 @@ class PaymentServiceTest {
 
     @Test
     fun `webhook ignores non-paid status`() = runTest {
-        service.createTochkaPayment(deviceId, SubscriptionServiceImpl.TARIFF)
-        val tochkaId = "tochka_${deviceId.toString().take(8)}"
+        val response = service.createTochkaPayment(deviceId, SubscriptionServiceImpl.TARIFF)
+        val tochkaId = "tochka_${response.paymentId.toString().take(8)}"
 
         service.handleTochkaWebhook(
-            """{"payment_id":"$tochkaId","status":"pending"}""",
+            """{"payment_id":"$tochkaId","payment_link_id":"${response.paymentId}","status":"pending"}""",
             "test-signature",
         )
 

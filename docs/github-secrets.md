@@ -57,9 +57,11 @@
 
 | Secret | Описание |
 |--------|----------|
-| `TOCHKA_MERCHANT_ID` | Точка API |
-| `TOCHKA_SECRET_KEY` | Точка API |
-| `TOCHKA_WEBHOOK_SECRET` | Webhook |
+| `TOCHKA_MERCHANT_ID` | ID торговой точки (15 цифр), если несколько |
+| `TOCHKA_SECRET_KEY` / `TOCHKA_ACCESS_TOKEN` | JWT Bearer для Tochka OpenAPI |
+| `TOCHKA_CUSTOMER_CODE` | *(опционально)* override, если в Точке несколько клиентов |
+| `TOCHKA_WEBHOOK_SECRET` | Для dev/stub webhook (prod — RS256 JWT) |
+| `PUBLIC_BASE_URL` | HTTPS URL backend для redirect после оплаты |
 | `VK_APP_ID` | VK ID |
 | `VK_SERVICE_TOKEN` | VK verify |
 | `JWT_ISSUER` | `kkalscan` |

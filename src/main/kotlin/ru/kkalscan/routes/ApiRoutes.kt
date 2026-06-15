@@ -54,6 +54,15 @@ fun Application.configureRouting(module: AppModule) {
             call.respondText(module.paymentService.renderPayPage(deviceId), ContentType.Text.Html)
         }
 
+        get("/pay/success") {
+            val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
+            call.respondText(module.paymentService.renderPaySuccessPage(deviceId), ContentType.Text.Html)
+        }
+
+        get("/pay/fail") {
+            call.respondText(module.paymentService.renderPayFailPage(), ContentType.Text.Html)
+        }
+
         route("/api/v1") {
             post("/scan") {
                 val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")

@@ -3,6 +3,9 @@ package ru.kkalscan.integrations
 import kotlinx.coroutines.delay
 import org.slf4j.LoggerFactory
 import ru.kkalscan.domain.model.DishDto
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import ru.kkalscan.domain.port.TochkaClient
 import ru.kkalscan.domain.port.VisionClient
 import ru.kkalscan.domain.port.VkAuthClient
@@ -59,13 +62,26 @@ class StubTochkaClient : TochkaClient {
         description: String,
         metadata: Map<String, String>,
     ): TochkaClient.TochkaPayment {
-        val id = "tochka_${metadata["device_id"]?.take(8) ?: "x"}"
+        val paymentLinkId = metadata["payment_link_id"]?.take(8) ?: "x"
+        val id = "tochka_$paymentLinkId"
         return TochkaClient.TochkaPayment(
             id = id,
             paymentUrl = "https://pay.tochka.example/$id",
         )
     }
 
-    override fun verifyWebhookSignature(body: String, signature: String?): Boolean =
-        signature == "test-signature" || signature == null
+    override fun parseWebhook(rawBody: String, signature: String?): TochkaClient.TochkaWebhookEvent? {
+        if (signature != null && signature != "test-signature") return null
+        if (!rawBody.trimStart().startsWith("{")) return null
+
+        val json = Json.parseToJsonElement(rawBody).jsonObject
+        return TochkaClient.TochkaWebhookEvent(
+            operationId = json["payment_id"]?.jsonPrimitive?.content
+                ?: json["operationId"]?.jsonPrimitive?.content,
+            paymentLinkId = json["payment_link_id"]?.jsonPrimitive?.content
+                ?: json["paymentLinkId"]?.jsonPrimitive?.content,
+            status = json["status"]?.jsonPrimitive?.content ?: "unknown",
+            webhookType = json["webhookType"]?.jsonPrimitive?.content,
+        )
+    }
 }

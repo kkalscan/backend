@@ -179,6 +179,8 @@ class InMemoryPaymentRepository : PaymentRepository {
 
     override suspend fun findByTochkaId(tochkaPaymentId: String): PaymentRecord? =
         byTochkaId[tochkaPaymentId]?.let { payments[it] }
+
+    override suspend fun findById(id: UUID): PaymentRecord? = payments[id]
 }
 
 class InMemoryVisionBudgetRepository : VisionBudgetRepository {

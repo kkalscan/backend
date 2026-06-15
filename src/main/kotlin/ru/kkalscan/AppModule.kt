@@ -24,9 +24,10 @@ import ru.kkalscan.domain.service.ScanServiceImpl
 import ru.kkalscan.domain.service.SubscriptionServiceImpl
 import ru.kkalscan.integrations.LoggingBugReportMailer
 import ru.kkalscan.integrations.SmtpBugReportMailer
-import ru.kkalscan.integrations.StubTochkaClient
 import ru.kkalscan.integrations.StubVkAuthClient
+import ru.kkalscan.integrations.tochka.TochkaClientFactory
 import ru.kkalscan.integrations.VisionClientFactory
+import ru.kkalscan.domain.port.TochkaClient
 import ru.kkalscan.domain.port.VisionClient
 import javax.sql.DataSource
 
@@ -34,7 +35,7 @@ data class AppModule(
     val repos: InMemoryRepositories = InMemoryRepositories(),
     val visionClient: VisionClient = VisionClientFactory.create(),
     val vkAuthClient: StubVkAuthClient = StubVkAuthClient(),
-    val tochkaClient: StubTochkaClient = StubTochkaClient(),
+    val tochkaClient: TochkaClient = TochkaClientFactory.create(),
     val dataSource: DataSource? = null,
     val bugReportMailerOverride: BugReportMailer? = null,
 ) {

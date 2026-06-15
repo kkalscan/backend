@@ -109,7 +109,7 @@ class DiaryServiceImpl(
             val session = scanSessionRepository.findById(scanId)
                 ?: throw BadRequestException("scan_id не найден")
             if (session.deviceId != actor.deviceId) throw ForbiddenException()
-            return session.dishes
+            return request.dishes?.takeIf { it.isNotEmpty() } ?: session.dishes
         }
         val dishes = request.dishes
         if (dishes.isNullOrEmpty()) throw BadRequestException("Укажите scan_id или dishes")

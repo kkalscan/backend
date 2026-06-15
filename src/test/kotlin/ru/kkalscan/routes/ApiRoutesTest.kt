@@ -151,15 +151,17 @@ class ApiRoutesTest {
     fun `payment webhook activates pro`() = testApplication {
         application { testModule(TestFixtures.freshModule()) }
 
-        client.post("/api/v1/payments/tochka/create") {
+        val create = client.post("/api/v1/payments/tochka/create") {
             contentType(ContentType.Application.Json)
             setBody("""{"device_id":"$deviceId","tariff":"pro_monthly_199"}""")
         }
+        val paymentId = json.parseToJsonElement(create.bodyAsText()).jsonObject["payment_id"]!!.jsonPrimitive.content
+        val tochkaId = "tochka_${paymentId.take(8)}"
 
         val webhook = client.post("/api/v1/payments/tochka/webhook") {
             contentType(ContentType.Application.Json)
             header("X-Signature", "test-signature")
-            setBody("""{"payment_id":"tochka_11111111","status":"paid"}""")
+            setBody("""{"payment_id":"$tochkaId","payment_link_id":"$paymentId","status":"paid"}""")
         }
         assertEquals(HttpStatusCode.OK, webhook.status)
 
