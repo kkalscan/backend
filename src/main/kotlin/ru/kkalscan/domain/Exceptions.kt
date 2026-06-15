@@ -12,6 +12,9 @@ class LimitHitException(scansLeft: Int = 0) :
 class BonusAlreadyUsedException :
     DomainException("bonus_already_used", "Бонус за рекламу уже использован сегодня")
 
+class BugReportAlreadyUsedException :
+    DomainException("bug_report_already_used", "Вы уже отправляли баг-репорт с этого устройства")
+
 class ForbiddenException(message: String = "Доступ запрещён") :
     DomainException("forbidden", message)
 

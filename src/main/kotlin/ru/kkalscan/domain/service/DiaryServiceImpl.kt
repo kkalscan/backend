@@ -1,5 +1,6 @@
 package ru.kkalscan.domain.service
 
+import org.slf4j.LoggerFactory
 import ru.kkalscan.domain.BadRequestException
 import ru.kkalscan.domain.ForbiddenException
 import ru.kkalscan.domain.NotFoundException
@@ -24,12 +25,21 @@ class DiaryServiceImpl(
     private val scanSessionRepository: ScanSessionRepository,
 ) : DiaryService {
 
+    private val log = LoggerFactory.getLogger(DiaryServiceImpl::class.java)
+
     override suspend fun getDay(
         actor: Actor,
         date: LocalDate,
         timezoneOffsetMinutes: Int,
     ): DiaryDayResponse {
         val entries = loadEntries(actor, date, timezoneOffsetMinutes)
+        log.debug(
+            "diary get device={} date={} entries={} kcal={}",
+            mask(actor.deviceId),
+            date,
+            entries.size,
+            entries.sumOf { it.totalKcal },
+        )
         return DiaryDayResponse(
             date = date,
             totalKcal = entries.sumOf { it.totalKcal },
@@ -73,6 +83,15 @@ class DiaryServiceImpl(
         )
 
         val saved = diaryRepository.insertEntry(entry, dishes)
+        log.info(
+            "diary add device={} entryId={} meal={} kcal={} scanId={} left={}",
+            mask(actor.deviceId),
+            saved.id.toString().take(8),
+            request.mealType,
+            saved.totalKcal,
+            scanSessionId?.toString()?.take(8),
+            quotaService.getScansLeft(actor, localDate),
+        )
         return CreateDiaryEntryResponse(
             entry = saved.toDto(),
             scansLeft = quotaService.getScansLeft(actor, localDate),
@@ -115,4 +134,6 @@ class DiaryServiceImpl(
         totalKcal = totalKcal,
         dishes = dishes,
     )
+
+    private fun mask(deviceId: UUID): String = deviceId.toString().take(8) + "…"
 }

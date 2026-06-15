@@ -9,6 +9,7 @@ import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import kotlinx.serialization.json.Json
+import ru.kkalscan.data.DatabaseFactory
 import ru.kkalscan.plugins.configureStatusPages
 import ru.kkalscan.routes.configureRouting
 
@@ -17,7 +18,8 @@ fun main() {
 }
 
 fun Application.module() {
-    val module = AppModule()
+    val dataSource = DatabaseFactory.init(AppConfig.databaseUrl)
+    val module = AppModule(dataSource = dataSource)
 
     environment.log.info(
         "Vision: provider={}, model={}",

@@ -38,6 +38,7 @@
 | 403 | `forbidden` | чужая запись дневника |
 | 404 | `not_found` | entry id |
 | 409 | `bonus_already_used` | повторный бонус за рекламу |
+| 409 | `bug_report_already_used` | повторный баг-репорт с этого устройства |
 | 429 | `limit_hit` | лимит сканов |
 | 503 | `vision_budget_exceeded` | потолок Vision API |
 | 503 | `vision_unavailable` | таймаут / ошибка LLM |
@@ -239,6 +240,37 @@
   "tariff": "pro_monthly_199"
 }
 ```
+
+---
+
+## 5.1 Feedback
+
+### `POST /api/v1/feedback/bug`
+
+Сообщение о баге. За первый принятый репорт с устройства — **Pro на 30 дней**.
+
+**multipart/form-data:**
+
+| Field | Type | Required |
+|-------|------|----------|
+| `device_id` | string (UUID) | да* |
+| `email` | string | да |
+| `description` | string (10…2000) | да |
+| `screenshot` | file (image/jpeg, image/png) | нет, до 3 шт., ≤600 KB |
+
+\* или `X-Device-Id` header
+
+**200:**
+```json
+{
+  "report_id": "uuid",
+  "is_pro": true,
+  "pro_until": "2026-07-14T12:00:00Z",
+  "message": "Спасибо! Pro на месяц активирован."
+}
+```
+
+**409:** `bug_report_already_used` — с этого device_id репорт уже отправляли.
 
 ---
 

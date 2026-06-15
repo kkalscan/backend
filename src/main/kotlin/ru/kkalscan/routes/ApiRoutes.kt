@@ -12,6 +12,7 @@ import ru.kkalscan.api.dto.AuthTokenJson
 import ru.kkalscan.api.dto.HealthResponse
 import ru.kkalscan.api.dto.VisionHealthInfo
 import ru.kkalscan.api.dto.BonusResponse
+import ru.kkalscan.api.dto.BugReportResponse
 import ru.kkalscan.api.dto.DiaryEntryRequest
 import ru.kkalscan.api.dto.PaymentCreateJson
 import ru.kkalscan.api.dto.PaymentCreateRequest
@@ -25,6 +26,7 @@ import ru.kkalscan.api.dto.toResponse
 import ru.kkalscan.domain.BadRequestException
 import ru.kkalscan.domain.port.DiaryService
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 fun Application.configureRouting(module: AppModule) {
@@ -159,9 +161,49 @@ fun Application.configureRouting(module: AppModule) {
                 module.paymentService.handleTochkaWebhook(raw, signature)
                 call.respond(WebhookAck())
             }
+
+            post("/feedback/bug") {
+                val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
+                val multipart = call.receiveMultipart(formFieldLimit = 1024 * 1024)
+                var email: String? = null
+                var description: String? = null
+                val screenshots = mutableListOf<ByteArray>()
+
+                multipart.forEachPart { part ->
+                    when (part) {
+                        is PartData.FormItem -> when (part.name) {
+                            "email" -> email = part.value
+                            "description" -> description = part.value
+                        }
+                        is PartData.FileItem -> if (part.name == "screenshot") {
+                            screenshots.add(part.streamProvider().readBytes())
+                        }
+                        else -> Unit
+                    }
+                    part.dispose()
+                }
+
+                val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
+                val result = module.bugReportService.submitBugReport(
+                    actor = actor,
+                    email = email ?: throw BadRequestException("email обязателен"),
+                    description = description ?: throw BadRequestException("description обязателен"),
+                    screenshots = screenshots,
+                )
+                call.respond(
+                    BugReportResponse(
+                        report_id = result.reportId.toString(),
+                        is_pro = result.isPro,
+                        pro_until = result.proUntil?.let { instantFormatter.format(it) },
+                        message = result.message,
+                    ),
+                )
+            }
         }
     }
 }
+
+private val instantFormatter = DateTimeFormatter.ISO_INSTANT
 
 private fun ApplicationCall.parseDeviceId(): UUID? {
     request.queryParameters["device_id"]?.let { return runCatching { UUID.fromString(it) }.getOrNull() }

@@ -18,18 +18,21 @@
 
 ---
 
-## Vision (OpenRouter)
+## Vision (stub на MVP)
 
-| Secret | Default | Описание |
-|--------|---------|----------|
-| `VISION_PROVIDER` | `stub` | `stub` — тест без API; `openrouter` — prod |
-| `OPENROUTER_API_KEY` | — | Ключ [openrouter.ai/keys](https://openrouter.ai/keys) |
-| `OPENROUTER_MODEL` | `google/gemini-2.5-flash` | Vision-модель с [openrouter.ai/models](https://openrouter.ai/models) |
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Обычно не менять |
-| `OPENROUTER_APP_URL` | `http://91.207.75.72:8080` | Referer для OpenRouter |
-| `OPENROUTER_APP_NAME` | `KkalScan` | X-Title для OpenRouter |
-| `VISION_MONTHLY_BUDGET_RUB` | `5000` | Hard stop расходов |
-| `VISION_COST_PER_REQUEST_RUB` | `1` | Учёт в budget |
+**`VISION_PROVIDER` не берётся из GitHub Secrets** — в `scripts/generate-env.sh` всегда `stub`.  
+Чтобы включить OpenRouter на prod, поменяйте строку в `generate-env.sh` и задеплойте.
+
+| Переменная | Источник | Описание |
+|------------|----------|----------|
+| `VISION_PROVIDER` | `generate-env.sh` | Захардкожено `stub` |
+| `OPENROUTER_API_KEY` | Secret (опционально) | Нужен только при `openrouter` |
+| `OPENROUTER_MODEL` | Secret | `google/gemini-2.5-flash` — vision-модель |
+| `OPENROUTER_BASE_URL` | Secret | `https://openrouter.ai/api/v1` |
+| `OPENROUTER_APP_URL` | Secret | `http://91.207.75.72:8080` |
+| `OPENROUTER_APP_NAME` | Secret | `KkalScan` |
+| `VISION_MONTHLY_BUDGET_RUB` | Secret | `5000` |
+| `VISION_COST_PER_REQUEST_RUB` | Secret | `1` |
 
 **Смена модели:** поменяй только `OPENROUTER_MODEL`, код не трогаем.
 
@@ -64,18 +67,35 @@
 
 ---
 
-## Prod checklist
+## Bug report (SMTP)
 
-```env
-VISION_PROVIDER=openrouter
-OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=google/gemini-2.5-flash
-```
+Письма о багах уходят на `mail@antonbutov.com` через `mail.antonbutov.com:587`.
 
-Dev / CI tests:
+| Secret | Обязательность | Default в `generate-env.sh` |
+|--------|----------------|----------------------------|
+| `SMTP_PASSWORD` | **да** (для prod) | — |
+| `SMTP_USER` | нет | `mail@antonbutov.com` |
+| `SMTP_HOST` | нет | `mail.antonbutov.com` |
+| `SMTP_PORT` | нет | `587` |
+| `SMTP_FROM` | нет | `mail@antonbutov.com` |
+| `BUG_REPORT_NOTIFY_TO` | нет | `mail@antonbutov.com` |
+| `SMTP_USE_TLS` | нет | `true` |
+
+Без `SMTP_PASSWORD` на prod баг-репорты сохраняются в БД, но письмо не отправится (ошибка SMTP).
+
+---
+
+## Prod checklist (MVP — stub vision)
+
+Деплой всегда пишет `VISION_PROVIDER=stub` в `.env` на сервере.
+
+Для OpenRouter позже: в `scripts/generate-env.sh` заменить на `VISION_PROVIDER=openrouter` и задать секрет `OPENROUTER_API_KEY`.
+
 ```env
 VISION_PROVIDER=stub
 ```
+
+Dev / CI tests — то же самое, локально через `.env.example`.
 
 ---
 

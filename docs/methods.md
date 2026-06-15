@@ -41,6 +41,7 @@ HTTP Request
 | 12 | `POST /api/v1/payments/tochka/webhook` | `PaymentRoutes.webhook` | `PaymentService.handleTochkaWebhook` |
 | 13 | `GET /pay` | `PaymentRoutes.payPage` | `PaymentService.renderPayPage` |
 | 14 | `GET /privacy` | `StaticRoutes.privacy` | — |
+| 15 | `POST /api/v1/feedback/bug` | `FeedbackRoutes.postBug` | `BugReportService.submitBugReport` |
 
 ---
 
@@ -378,7 +379,62 @@ suspend fun renderPayPage(deviceId: UUID): String  // HTML
 
 ---
 
-## 11. VisionClient (integration)
+## 11. BugReportService
+
+**Файл:** `domain/service/BugReportService.kt`  
+**Route:** `routes/ApiRoutes.kt` → `POST /feedback/bug`
+
+### `submitBugReport`
+
+```kotlin
+suspend fun submitBugReport(
+    actor: Actor,
+    email: String,
+    description: String,
+    screenshots: List<ByteArray>,
+): BugReportResult
+```
+
+| Шаг | Действие |
+|-----|----------|
+| 1 | Validate email (обязателен), description (10…2000 символов), screenshots (0…3, ≤600 KB) |
+| 2 | `bugReportRepository.hasReportForDevice(deviceId)` → true → `BugReportAlreadyUsedException` |
+| 3 | Сохранить репорт (email, description, count screenshots) |
+| 4 | `subscriptionService.activatePro(deviceId, pro_bug_report_30d, now)` — **+30 дней Pro** |
+| 5 | `bugReportMailer.sendBugReportNotification(...)` → `mail@antonbutov.com` via `mail.antonbutov.com` |
+| 6 | Return `BugReportResult` с `pro_until` |
+
+**Правила награды:**
+
+- Один баг-репорт с наградой **на device_id** (повтор → 409 `bug_report_already_used`)
+- Email обязателен — для связи с автором
+- Скриншоты опциональны (до 3 шт.)
+- Скриншоты сохраняются в SQLite: `bug_reports` + `bug_report_screenshots.data` (BLOB)
+- Email на `BUG_REPORT_NOTIFY_TO` (default `mail@antonbutov.com`) через SMTP `SMTP_HOST` (default `mail.antonbutov.com:587`)
+
+| Исключение | HTTP |
+|------------|------|
+| `BadRequestException` | 400 |
+| `BugReportAlreadyUsedException` | 409 |
+
+### BugReportRepository
+
+```kotlin
+interface BugReportRepository {
+    suspend fun hasReportForDevice(deviceId: UUID): Boolean
+    suspend fun create(
+        deviceId: UUID,
+        userId: UUID?,
+        email: String,
+        description: String,
+        screenshots: List<ByteArray>,
+    ): UUID
+}
+```
+
+---
+
+## 12. VisionClient (integration)
 
 **Файл:** `integrations/vision/VisionClient.kt`
 
@@ -620,4 +676,5 @@ fun Application.module() {
 
 | Версия | Дата | Изменения |
 |--------|------|-----------|
+| 1.1 | 2026-06-14 | `POST /feedback/bug`, BugReportService |
 | 1.0 | 2026-06-14 | Полный каталог методов v1 |

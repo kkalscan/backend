@@ -3,6 +3,8 @@ package ru.kkalscan.data.memory
 import ru.kkalscan.domain.model.DishDto
 import ru.kkalscan.domain.model.MealType
 import ru.kkalscan.domain.model.OAuthProvider
+import ru.kkalscan.domain.port.BugReportRecord
+import ru.kkalscan.domain.port.BugReportRepository
 import ru.kkalscan.domain.port.DeviceRecord
 import ru.kkalscan.domain.port.DeviceRepository
 import ru.kkalscan.domain.port.DiaryEntryRecord
@@ -189,6 +191,40 @@ class InMemoryVisionBudgetRepository : VisionBudgetRepository {
     }
 }
 
+class InMemoryBugReportRepository : BugReportRepository {
+    private val reports = ConcurrentHashMap<UUID, BugReportRecord>()
+    private val byDevice = ConcurrentHashMap<UUID, UUID>()
+
+    override suspend fun hasReportForDevice(deviceId: UUID): Boolean = byDevice.containsKey(deviceId)
+
+    override suspend fun create(
+        deviceId: UUID,
+        userId: UUID?,
+        email: String,
+        description: String,
+        screenshots: List<ByteArray>,
+    ): UUID {
+        val id = UUID.randomUUID()
+        val record = BugReportRecord(
+            id = id,
+            deviceId = deviceId,
+            userId = userId,
+            email = email,
+            description = description,
+            screenshotCount = screenshots.size,
+            createdAt = Instant.now(),
+        )
+        reports[id] = record
+        byDevice[deviceId] = id
+        return id
+    }
+
+    override suspend fun deleteReport(reportId: UUID) {
+        reports.remove(reportId)
+        byDevice.entries.removeIf { it.value == reportId }
+    }
+}
+
 data class InMemoryRepositories(
     val devices: InMemoryDeviceRepository = InMemoryDeviceRepository(),
     val quotas: InMemoryScanQuotaRepository = InMemoryScanQuotaRepository(),
@@ -198,4 +234,5 @@ data class InMemoryRepositories(
     val oauth: InMemoryOAuthRepository = InMemoryOAuthRepository(),
     val payments: InMemoryPaymentRepository = InMemoryPaymentRepository(),
     val visionBudget: InMemoryVisionBudgetRepository = InMemoryVisionBudgetRepository(),
+    val bugReports: InMemoryBugReportRepository = InMemoryBugReportRepository(),
 )

@@ -13,6 +13,7 @@ fun Application.configureStatusPages() {
             val status = when (cause.errorCode) {
                 "limit_hit" -> HttpStatusCode.TooManyRequests
                 "bonus_already_used" -> HttpStatusCode.Conflict
+                "bug_report_already_used" -> HttpStatusCode.Conflict
                 "forbidden" -> HttpStatusCode.Forbidden
                 "not_found" -> HttpStatusCode.NotFound
                 "unauthorized" -> HttpStatusCode.Unauthorized

@@ -24,6 +24,19 @@ object AppConfig {
         ?: "http://91.207.75.72:8080"
     val openRouterAppName: String = System.getenv("OPENROUTER_APP_NAME")?.trim().takeUnless { it.isNullOrBlank() }
         ?: "KkalScan"
+
+    val smtpHost: String = System.getenv("SMTP_HOST")?.trim().takeUnless { it.isNullOrBlank() }
+        ?: "mail.antonbutov.com"
+    val smtpPort: Int = System.getenv("SMTP_PORT")?.toIntOrNull() ?: 587
+    val smtpUser: String = System.getenv("SMTP_USER").orEmpty().trim()
+    val smtpPassword: String = System.getenv("SMTP_PASSWORD").orEmpty()
+    val smtpFrom: String = System.getenv("SMTP_FROM")?.trim().takeUnless { it.isNullOrBlank() }
+        ?: smtpUser.ifBlank { "noreply@antonbutov.com" }
+    val bugReportNotifyTo: String = System.getenv("BUG_REPORT_NOTIFY_TO")?.trim().takeUnless { it.isNullOrBlank() }
+        ?: "mail@antonbutov.com"
+    val smtpUseTls: Boolean = System.getenv("SMTP_USE_TLS")?.toBooleanStrictOrNull() ?: true
+
+    val smtpConfigured: Boolean get() = smtpUser.isNotBlank() && smtpPassword.isNotBlank()
 }
 
 internal fun normalizeOpenRouterModel(model: String): String =

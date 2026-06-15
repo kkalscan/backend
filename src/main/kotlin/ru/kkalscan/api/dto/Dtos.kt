@@ -122,6 +122,14 @@ data class PaymentCreateJson(val payment_url: String, val payment_id: String)
 @Serializable
 data class WebhookAck(val ok: Boolean = true)
 
+@Serializable
+data class BugReportResponse(
+    val report_id: String,
+    val is_pro: Boolean,
+    val pro_until: String? = null,
+    val message: String,
+)
+
 private val instantFormatter = DateTimeFormatter.ISO_INSTANT
 
 fun ScanService.ScanResult.toResponse() = ScanResponse(

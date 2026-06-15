@@ -219,4 +219,44 @@ class ApiRoutesTest {
         val response = client.get("/api/v1/diary?date=$today")
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
+
+    @Test
+    fun `bug report grants pro once per device`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+
+        val first = client.post("/api/v1/feedback/bug") {
+            header("X-Device-Id", deviceId)
+            setBody(
+                MultiPartFormDataContent(
+                    formData {
+                        append("email", "bug@example.com")
+                        append("description", "Кнопка скана не открывает камеру на Android 14")
+                    },
+                ),
+            )
+        }
+        assertEquals(HttpStatusCode.OK, first.status)
+        val firstBody = json.parseToJsonElement(first.bodyAsText()).jsonObject
+        assertTrue(firstBody["is_pro"]!!.jsonPrimitive.boolean)
+
+        val status = client.get("/api/v1/subscription/status") {
+            header("X-Device-Id", deviceId)
+        }
+        assertTrue(
+            json.parseToJsonElement(status.bodyAsText()).jsonObject["is_pro"]!!.jsonPrimitive.boolean,
+        )
+
+        val second = client.post("/api/v1/feedback/bug") {
+            header("X-Device-Id", deviceId)
+            setBody(
+                MultiPartFormDataContent(
+                    formData {
+                        append("email", "other@example.com")
+                        append("description", "Второй баг-репорт с достаточным описанием")
+                    },
+                ),
+            )
+        }
+        assertEquals(HttpStatusCode.Conflict, second.status)
+    }
 }

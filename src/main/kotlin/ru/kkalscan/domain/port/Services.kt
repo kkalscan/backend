@@ -107,6 +107,55 @@ interface PaymentService {
     suspend fun renderPayPage(deviceId: UUID): String
 }
 
+interface BugReportService {
+    suspend fun submitBugReport(
+        actor: Actor,
+        email: String,
+        description: String,
+        screenshots: List<ByteArray>,
+    ): BugReportResult
+
+    data class BugReportResult(
+        val reportId: UUID,
+        val isPro: Boolean,
+        val proUntil: Instant?,
+        val message: String,
+    )
+}
+
+interface BugReportRepository {
+    suspend fun hasReportForDevice(deviceId: UUID): Boolean
+
+    suspend fun create(
+        deviceId: UUID,
+        userId: UUID?,
+        email: String,
+        description: String,
+        screenshots: List<ByteArray>,
+    ): UUID
+
+    suspend fun deleteReport(reportId: UUID)
+}
+
+data class BugReportRecord(
+    val id: UUID,
+    val deviceId: UUID,
+    val userId: UUID?,
+    val email: String,
+    val description: String,
+    val screenshotCount: Int,
+    val createdAt: Instant,
+)
+
+data class BugReportScreenshotRecord(
+    val id: UUID,
+    val reportId: UUID,
+    val position: Int,
+    val contentType: String,
+    val sizeBytes: Long,
+    val createdAt: Instant,
+)
+
 // Response stubs — serialized in routes layer
 data class DiaryDayResponse(
     val date: LocalDate,

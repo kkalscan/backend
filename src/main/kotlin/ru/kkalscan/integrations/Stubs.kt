@@ -1,16 +1,48 @@
 package ru.kkalscan.integrations
 
+import kotlinx.coroutines.delay
+import org.slf4j.LoggerFactory
 import ru.kkalscan.domain.model.DishDto
 import ru.kkalscan.domain.port.TochkaClient
 import ru.kkalscan.domain.port.VisionClient
 import ru.kkalscan.domain.port.VkAuthClient
+import kotlin.math.absoluteValue
 
-class StubVisionClient(
-    private val dishes: List<DishDto> = listOf(
-        DishDto("Тестовое блюдо", 200, 350, 15.0, 10.0, 40.0),
-    ),
-) : VisionClient {
-    override suspend fun analyzeFood(imageBytes: ByteArray): List<DishDto> = dishes
+/**
+ * Offline vision stub for dev/MVP — no OpenRouter calls.
+ * Picks a preset from image bytes so different photos get different dishes.
+ */
+class StubVisionClient : VisionClient {
+
+    private val log = LoggerFactory.getLogger(StubVisionClient::class.java)
+
+    private val presets: List<List<DishDto>> = listOf(
+        listOf(DishDto("Борщ с говядиной", 300, 250, 12.0, 8.0, 22.0)),
+        listOf(DishDto("Куриная грудка с рисом", 350, 420, 45.0, 6.0, 52.0)),
+        listOf(
+            DishDto("Салат Цезарь", 200, 280, 14.0, 18.0, 12.0),
+            DishDto("Капучино", 250, 80, 4.0, 3.0, 8.0),
+        ),
+        listOf(DishDto("Овсянка с бананом", 250, 320, 12.0, 8.0, 52.0)),
+        listOf(DishDto("Плов с бараниной", 320, 480, 22.0, 16.0, 58.0)),
+    )
+
+    override suspend fun analyzeFood(imageBytes: ByteArray): List<DishDto> {
+        delay(STUB_LATENCY_MS)
+        val index = (imageBytes.sumOf { it.toInt() }.absoluteValue) % presets.size
+        val dishes = presets[index]
+        log.info(
+            "stub vision: {} bytes -> preset {} ({})",
+            imageBytes.size,
+            index,
+            dishes.joinToString { it.name },
+        )
+        return dishes
+    }
+
+    private companion object {
+        const val STUB_LATENCY_MS = 900L
+    }
 }
 
 class StubVkAuthClient : VkAuthClient {

@@ -49,6 +49,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP:6.2.1")
 
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
+    implementation("org.eclipse.angus:angus-mail:2.0.3")
 
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktorVersion")
     testImplementation("io.ktor:ktor-client-mock-jvm:$ktorVersion")
