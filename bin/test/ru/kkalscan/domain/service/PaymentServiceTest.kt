@@ -4,7 +4,6 @@ import kotlinx.coroutines.test.runTest
 import ru.kkalscan.TestFixtures
 import ru.kkalscan.data.memory.InMemoryRepositories
 import ru.kkalscan.domain.BadRequestException
-import ru.kkalscan.integrations.LoggingPlainTextMailer
 import ru.kkalscan.integrations.StubTochkaClient
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,15 +13,11 @@ import kotlin.test.assertTrue
 class PaymentServiceTest {
     private val repos = InMemoryRepositories()
     private val subscriptionService = SubscriptionServiceImpl(repos.devices, repos.users)
-    private val mailer = LoggingPlainTextMailer()
     private val service = PaymentServiceImpl(
         repos.payments,
         repos.devices,
         subscriptionService,
         StubTochkaClient(),
-        mailer,
-        testPaymentNotifyTo = "owner@example.com",
-        testPaymentSecret = "test-secret",
     )
     private val deviceId = TestFixtures.deviceId
 
@@ -43,11 +38,11 @@ class PaymentServiceTest {
 
     @Test
     fun `paid webhook activates pro`() = runTest {
-        val response = service.createTochkaPayment(deviceId, SubscriptionServiceImpl.TARIFF)
-        val tochkaId = "tochka_${response.paymentId.toString().take(8)}"
+        service.createTochkaPayment(deviceId, SubscriptionServiceImpl.TARIFF)
+        val tochkaId = "tochka_${deviceId.toString().take(8)}"
 
         service.handleTochkaWebhook(
-            """{"payment_id":"$tochkaId","payment_link_id":"${response.paymentId}","status":"paid"}""",
+            """{"payment_id":"$tochkaId","status":"paid"}""",
             "test-signature",
         )
 
@@ -65,11 +60,11 @@ class PaymentServiceTest {
 
     @Test
     fun `webhook ignores non-paid status`() = runTest {
-        val response = service.createTochkaPayment(deviceId, SubscriptionServiceImpl.TARIFF)
-        val tochkaId = "tochka_${response.paymentId.toString().take(8)}"
+        service.createTochkaPayment(deviceId, SubscriptionServiceImpl.TARIFF)
+        val tochkaId = "tochka_${deviceId.toString().take(8)}"
 
         service.handleTochkaWebhook(
-            """{"payment_id":"$tochkaId","payment_link_id":"${response.paymentId}","status":"pending"}""",
+            """{"payment_id":"$tochkaId","status":"pending"}""",
             "test-signature",
         )
 

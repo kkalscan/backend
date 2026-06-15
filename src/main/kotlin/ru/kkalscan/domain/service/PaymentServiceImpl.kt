@@ -2,14 +2,19 @@ package ru.kkalscan.domain.service
 
 import ru.kkalscan.AppConfig
 import ru.kkalscan.domain.BadRequestException
+import ru.kkalscan.domain.ForbiddenException
 import ru.kkalscan.domain.port.DeviceRepository
+import ru.kkalscan.domain.port.PlainTextMailer
 import ru.kkalscan.domain.port.PaymentCreateResponse
 import ru.kkalscan.domain.port.PaymentRecord
 import ru.kkalscan.domain.port.PaymentRepository
 import ru.kkalscan.domain.port.PaymentService
 import ru.kkalscan.domain.port.SubscriptionService
 import ru.kkalscan.domain.port.TochkaClient
+import ru.kkalscan.domain.model.Actor
+import ru.kkalscan.domain.service.SubscriptionServiceImpl.Companion.PRO_DAYS
 import ru.kkalscan.domain.service.SubscriptionServiceImpl.Companion.TARIFF
+import java.time.temporal.ChronoUnit
 import java.time.Instant
 import java.util.UUID
 
@@ -18,6 +23,10 @@ class PaymentServiceImpl(
     private val deviceRepository: DeviceRepository,
     private val subscriptionService: SubscriptionService,
     private val tochkaClient: TochkaClient,
+    private val plainTextMailer: PlainTextMailer,
+    private val testPaymentNotifyTo: String = AppConfig.testPaymentNotifyTo,
+    private val testPaymentSecret: String = AppConfig.testPaymentSecret,
+    private val testPaymentEnabled: Boolean = AppConfig.testPaymentEnabled,
 ) : PaymentService {
 
     override suspend fun createTochkaPayment(deviceId: UUID, tariff: String): PaymentCreateResponse {
@@ -52,6 +61,69 @@ class PaymentServiceImpl(
         )
 
         return PaymentCreateResponse(paymentUrl = tochka.paymentUrl, paymentId = paymentId)
+    }
+
+    override suspend fun activateTestPayment(deviceId: UUID, secret: String): PaymentService.TestPaymentResult {
+        if (!testPaymentEnabled) {
+            throw ForbiddenException("Тестовая оплата отключена")
+        }
+        if (secret != testPaymentSecret) {
+            throw ForbiddenException("Неверный секрет")
+        }
+
+        deviceRepository.getOrCreate(deviceId)
+        val paidAt = Instant.now()
+
+        runCatching {
+            plainTextMailer.send(
+                to = testPaymentNotifyTo,
+                subject = "KkalScan: тестовая оплата Pro",
+                body = buildString {
+                    appendLine("Тестовая оплата Pro активирована.")
+                    appendLine()
+                    appendLine("Device ID: $deviceId")
+                    appendLine("Тариф: $TARIFF")
+                    appendLine("Сумма: ${PRO_PRICE_KOPECKS / 100.0} ₽ (тест)")
+                    appendLine("Оплачено: $paidAt")
+                    appendLine("Срок: ${PRO_DAYS} дней")
+                },
+            )
+        }.onFailure { e ->
+            throw BadRequestException("Не удалось отправить письмо: ${e.message ?: "SMTP error"}")
+        }
+
+        val paymentId = UUID.randomUUID()
+        paymentRepository.create(
+            PaymentRecord(
+                id = paymentId,
+                deviceId = deviceId,
+                userId = deviceRepository.findById(deviceId)?.userId,
+                tochkaPaymentId = "test_$paymentId",
+                amountKopecks = PRO_PRICE_KOPECKS,
+                tariff = TARIFF,
+                status = "test_paid",
+                paidAt = paidAt,
+            ),
+        )
+        subscriptionService.activatePro(deviceId, TARIFF, paidAt)
+
+        val status = subscriptionService.getStatus(
+            Actor(
+                deviceId = deviceId,
+                userId = deviceRepository.findById(deviceId)?.userId,
+                isPro = true,
+                accountLinked = false,
+                linkedProviders = emptyList(),
+            ),
+        )
+        val proUntil = status.proUntil ?: paidAt.plus(PRO_DAYS, ChronoUnit.DAYS)
+
+        return PaymentService.TestPaymentResult(
+            isPro = status.isPro,
+            proUntil = proUntil,
+            tariff = TARIFF,
+            emailSent = true,
+        )
     }
 
     override suspend fun handleTochkaWebhook(rawBody: String, signature: String?) {

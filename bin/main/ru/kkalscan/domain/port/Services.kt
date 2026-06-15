@@ -104,20 +104,7 @@ interface PaymentService {
 
     suspend fun handleTochkaWebhook(rawBody: String, signature: String?)
 
-    suspend fun activateTestPayment(deviceId: UUID, secret: String): TestPaymentResult
-
     suspend fun renderPayPage(deviceId: UUID): String
-
-    suspend fun renderPaySuccessPage(deviceId: UUID): String
-
-    suspend fun renderPayFailPage(): String
-
-    data class TestPaymentResult(
-        val isPro: Boolean,
-        val proUntil: Instant,
-        val tariff: String,
-        val emailSent: Boolean,
-    )
 }
 
 interface BugReportService {
@@ -281,8 +268,6 @@ interface PaymentRepository {
 
     suspend fun markPaid(id: UUID, tochkaPaymentId: String, paidAt: Instant)
 
-    suspend fun findById(id: UUID): PaymentRecord?
-
     suspend fun findByTochkaId(tochkaPaymentId: String): PaymentRecord?
 }
 
@@ -309,16 +294,9 @@ interface TochkaClient {
         metadata: Map<String, String>,
     ): TochkaPayment
 
-    fun parseWebhook(rawBody: String, signature: String?): TochkaWebhookEvent?
+    fun verifyWebhookSignature(body: String, signature: String?): Boolean
 
     data class TochkaPayment(val id: String, val paymentUrl: String)
-
-    data class TochkaWebhookEvent(
-        val operationId: String?,
-        val paymentLinkId: String?,
-        val status: String,
-        val webhookType: String? = null,
-    )
 }
 
 // Internal records (not API DTOs)

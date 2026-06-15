@@ -11,7 +11,6 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import ru.kkalscan.AppConfig
 import ru.kkalscan.TestFixtures
 import ru.kkalscan.testModule
 import java.time.LocalDate
@@ -149,44 +148,18 @@ class ApiRoutesTest {
     }
 
     @Test
-    fun `test payment activates pro and sends email`() = testApplication {
-        application { testModule(TestFixtures.freshModule()) }
-
-        val response = client.post("/api/v1/payments/test/activate") {
-            contentType(ContentType.Application.Json)
-            setBody(
-                """{"device_id":"$deviceId","secret":"${AppConfig.testPaymentSecret}"}""",
-            )
-        }
-        assertEquals(HttpStatusCode.OK, response.status)
-        val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
-        assertTrue(body["is_pro"]!!.jsonPrimitive.boolean)
-        assertTrue(body["email_sent"]!!.jsonPrimitive.boolean)
-        assertEquals("pro_monthly_199", body["tariff"]!!.jsonPrimitive.content)
-
-        val status = client.get("/api/v1/subscription/status") {
-            header("X-Device-Id", deviceId)
-        }
-        assertTrue(
-            json.parseToJsonElement(status.bodyAsText()).jsonObject["is_pro"]!!.jsonPrimitive.boolean,
-        )
-    }
-
-    @Test
     fun `payment webhook activates pro`() = testApplication {
         application { testModule(TestFixtures.freshModule()) }
 
-        val create = client.post("/api/v1/payments/tochka/create") {
+        client.post("/api/v1/payments/tochka/create") {
             contentType(ContentType.Application.Json)
             setBody("""{"device_id":"$deviceId","tariff":"pro_monthly_199"}""")
         }
-        val paymentId = json.parseToJsonElement(create.bodyAsText()).jsonObject["payment_id"]!!.jsonPrimitive.content
-        val tochkaId = "tochka_${paymentId.take(8)}"
 
         val webhook = client.post("/api/v1/payments/tochka/webhook") {
             contentType(ContentType.Application.Json)
             header("X-Signature", "test-signature")
-            setBody("""{"payment_id":"$tochkaId","payment_link_id":"$paymentId","status":"paid"}""")
+            setBody("""{"payment_id":"tochka_11111111","status":"paid"}""")
         }
         assertEquals(HttpStatusCode.OK, webhook.status)
 

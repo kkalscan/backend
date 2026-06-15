@@ -114,21 +114,6 @@ data class AuthTokenJson(
 )
 
 @Serializable
-data class TestPaymentActivateRequest(
-    val device_id: String,
-    val secret: String,
-)
-
-@Serializable
-data class TestPaymentActivateResponse(
-    val is_pro: Boolean,
-    val pro_until: String,
-    val tariff: String,
-    val email_sent: Boolean,
-    val message: String,
-)
-
-@Serializable
 data class PaymentCreateRequest(val device_id: String, val tariff: String = "pro_monthly_199")
 
 @Serializable

@@ -37,29 +37,6 @@ object AppConfig {
     val smtpUseTls: Boolean = System.getenv("SMTP_USE_TLS")?.toBooleanStrictOrNull() ?: true
 
     val smtpConfigured: Boolean get() = smtpUser.isNotBlank() && smtpPassword.isNotBlank()
-
-    /** JWT access token from Tochka OpenAPI onboarding */
-    val tochkaAccessToken: String = System.getenv("TOCHKA_ACCESS_TOKEN").orEmpty().trim()
-        .ifBlank { System.getenv("TOCHKA_SECRET_KEY").orEmpty().trim() }
-    /** Optional override when Tochka returns several customers */
-    val tochkaCustomerCodeOverride: String = System.getenv("TOCHKA_CUSTOMER_CODE").orEmpty().trim()
-    val tochkaMerchantId: String = System.getenv("TOCHKA_MERCHANT_ID").orEmpty().trim()
-    val tochkaWebhookSecret: String = System.getenv("TOCHKA_WEBHOOK_SECRET").orEmpty().trim()
-    val tochkaApiBaseUrl: String = System.getenv("TOCHKA_API_BASE_URL")?.trim().takeUnless { it.isNullOrBlank() }
-        ?: "https://enter.tochka.com"
-    val publicBaseUrl: String = System.getenv("PUBLIC_BASE_URL")?.trim().takeUnless { it.isNullOrBlank() }
-        ?: openRouterAppUrl.trimEnd('/')
-
-    val tochkaConfigured: Boolean get() = tochkaAccessToken.isNotBlank()
-
-    /** Shared secret for POST /api/v1/payments/test/activate (falls back to JWT_SECRET). */
-    val testPaymentSecret: String = System.getenv("TEST_PAYMENT_SECRET").orEmpty().trim()
-        .ifBlank { jwtSecret }
-
-    val testPaymentNotifyTo: String = System.getenv("TEST_PAYMENT_NOTIFY_TO")?.trim().takeUnless { it.isNullOrBlank() }
-        ?: bugReportNotifyTo
-
-    val testPaymentEnabled: Boolean get() = testPaymentSecret.isNotBlank()
 }
 
 internal fun normalizeOpenRouterModel(model: String): String =

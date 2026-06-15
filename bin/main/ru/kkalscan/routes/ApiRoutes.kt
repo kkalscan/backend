@@ -14,8 +14,6 @@ import ru.kkalscan.api.dto.VisionHealthInfo
 import ru.kkalscan.api.dto.BonusResponse
 import ru.kkalscan.api.dto.BugReportResponse
 import ru.kkalscan.api.dto.DiaryEntryRequest
-import ru.kkalscan.api.dto.TestPaymentActivateRequest
-import ru.kkalscan.api.dto.TestPaymentActivateResponse
 import ru.kkalscan.api.dto.PaymentCreateJson
 import ru.kkalscan.api.dto.PaymentCreateRequest
 import ru.kkalscan.api.dto.ScanBonusRequest
@@ -54,15 +52,6 @@ fun Application.configureRouting(module: AppModule) {
         get("/pay") {
             val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
             call.respondText(module.paymentService.renderPayPage(deviceId), ContentType.Text.Html)
-        }
-
-        get("/pay/success") {
-            val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
-            call.respondText(module.paymentService.renderPaySuccessPage(deviceId), ContentType.Text.Html)
-        }
-
-        get("/pay/fail") {
-            call.respondText(module.paymentService.renderPayFailPage(), ContentType.Text.Html)
         }
 
         route("/api/v1") {
@@ -171,21 +160,6 @@ fun Application.configureRouting(module: AppModule) {
                 val signature = call.request.headers["X-Signature"]
                 module.paymentService.handleTochkaWebhook(raw, signature)
                 call.respond(WebhookAck())
-            }
-
-            post("/payments/test/activate") {
-                val body = call.receive<TestPaymentActivateRequest>()
-                val deviceId = parseUuid(body.device_id, "device_id")
-                val result = module.paymentService.activateTestPayment(deviceId, body.secret)
-                call.respond(
-                    TestPaymentActivateResponse(
-                        is_pro = result.isPro,
-                        pro_until = instantFormatter.format(result.proUntil),
-                        tariff = result.tariff,
-                        email_sent = result.emailSent,
-                        message = "Pro активирован на 30 дней (тестовая оплата)",
-                    ),
-                )
             }
 
             post("/feedback/bug") {

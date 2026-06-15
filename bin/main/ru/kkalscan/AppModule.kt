@@ -9,7 +9,6 @@ import ru.kkalscan.domain.port.BugReportService
 import ru.kkalscan.domain.port.DiaryService
 import ru.kkalscan.domain.port.IdentityResolver
 import ru.kkalscan.domain.port.PaymentService
-import ru.kkalscan.domain.port.PlainTextMailer
 import ru.kkalscan.domain.port.QuotaService
 import ru.kkalscan.domain.port.ScanService
 import ru.kkalscan.domain.port.SubscriptionService
@@ -24,13 +23,10 @@ import ru.kkalscan.domain.service.QuotaServiceImpl
 import ru.kkalscan.domain.service.ScanServiceImpl
 import ru.kkalscan.domain.service.SubscriptionServiceImpl
 import ru.kkalscan.integrations.LoggingBugReportMailer
-import ru.kkalscan.integrations.LoggingPlainTextMailer
 import ru.kkalscan.integrations.SmtpBugReportMailer
-import ru.kkalscan.integrations.SmtpPlainTextMailer
+import ru.kkalscan.integrations.StubTochkaClient
 import ru.kkalscan.integrations.StubVkAuthClient
-import ru.kkalscan.integrations.tochka.TochkaClientFactory
 import ru.kkalscan.integrations.VisionClientFactory
-import ru.kkalscan.domain.port.TochkaClient
 import ru.kkalscan.domain.port.VisionClient
 import javax.sql.DataSource
 
@@ -38,7 +34,7 @@ data class AppModule(
     val repos: InMemoryRepositories = InMemoryRepositories(),
     val visionClient: VisionClient = VisionClientFactory.create(),
     val vkAuthClient: StubVkAuthClient = StubVkAuthClient(),
-    val tochkaClient: TochkaClient = TochkaClientFactory.create(),
+    val tochkaClient: StubTochkaClient = StubTochkaClient(),
     val dataSource: DataSource? = null,
     val bugReportMailerOverride: BugReportMailer? = null,
 ) {
@@ -102,25 +98,11 @@ data class AppModule(
         jwtIssuer,
     )
 
-    val plainTextMailer: PlainTextMailer = if (AppConfig.smtpConfigured) {
-        SmtpPlainTextMailer(
-            host = AppConfig.smtpHost,
-            port = AppConfig.smtpPort,
-            username = AppConfig.smtpUser,
-            password = AppConfig.smtpPassword,
-            fromAddress = AppConfig.smtpFrom,
-            useTls = AppConfig.smtpUseTls,
-        )
-    } else {
-        LoggingPlainTextMailer()
-    }
-
     val paymentService: PaymentService = PaymentServiceImpl(
         repos.payments,
         repos.devices,
         subscriptionService,
         tochkaClient,
-        plainTextMailer,
     )
 
     val bugReportService: BugReportService = BugReportServiceImpl(
