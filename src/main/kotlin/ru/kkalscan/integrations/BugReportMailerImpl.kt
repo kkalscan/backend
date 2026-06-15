@@ -34,6 +34,7 @@ class SmtpBugReportMailer(
             put("mail.smtp.host", host)
             put("mail.smtp.port", port.toString())
             put("mail.smtp.auth", "true")
+            put("mail.smtp.ssl.trust", host)
             if (useTls) {
                 put("mail.smtp.starttls.enable", "true")
                 put("mail.smtp.starttls.required", "true")
