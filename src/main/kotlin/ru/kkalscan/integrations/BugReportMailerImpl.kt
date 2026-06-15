@@ -35,9 +35,18 @@ class SmtpBugReportMailer(
             put("mail.smtp.port", port.toString())
             put("mail.smtp.auth", "true")
             put("mail.smtp.ssl.trust", host)
-            if (useTls) {
-                put("mail.smtp.starttls.enable", "true")
-                put("mail.smtp.starttls.required", "true")
+            put("mail.smtp.ssl.checkserveridentity", "false")
+            when {
+                useTls && port == 465 -> {
+                    put("mail.smtp.ssl.enable", "true")
+                    put("mail.smtp.socketFactory.port", port.toString())
+                    put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory")
+                    put("mail.smtp.socketFactory.fallback", "false")
+                }
+                useTls -> {
+                    put("mail.smtp.starttls.enable", "true")
+                    put("mail.smtp.starttls.required", "true")
+                }
             }
         }
         val session = Session.getInstance(

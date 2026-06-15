@@ -27,7 +27,7 @@ object AppConfig {
 
     val smtpHost: String = System.getenv("SMTP_HOST")?.trim().takeUnless { it.isNullOrBlank() }
         ?: "mail.antonbutov.com"
-    val smtpPort: Int = System.getenv("SMTP_PORT")?.toIntOrNull() ?: 587
+    val smtpPort: Int = System.getenv("SMTP_PORT")?.toIntOrNull() ?: 465
     val smtpUser: String = System.getenv("SMTP_USER").orEmpty().trim()
     val smtpPassword: String = System.getenv("SMTP_PASSWORD").orEmpty()
     val smtpFrom: String = System.getenv("SMTP_FROM")?.trim().takeUnless { it.isNullOrBlank() }
