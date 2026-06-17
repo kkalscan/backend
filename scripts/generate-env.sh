@@ -10,8 +10,8 @@ JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
 JWT_ISSUER=${JWT_ISSUER:-kkalscan}
 JWT_TTL_SECONDS=${JWT_TTL_SECONDS:-2592000}
 
-# Vision: always stub in deploy (change here when switching to OpenRouter).
-VISION_PROVIDER=stub
+# Vision: openrouter when key is set (real food recognition); stub for offline dev.
+VISION_PROVIDER=${VISION_PROVIDER:-$([ -n "${OPENROUTER_API_KEY:-}" ] && echo openrouter || echo stub)}
 OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
 OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemini-2.5-flash}
 OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
