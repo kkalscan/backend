@@ -20,14 +20,14 @@ class StubVisionClient : VisionClient {
     private val log = LoggerFactory.getLogger(StubVisionClient::class.java)
 
     private val presets: List<List<DishDto>> = listOf(
-        listOf(DishDto("Борщ с говядиной", 300, 250, 12.0, 8.0, 22.0)),
-        listOf(DishDto("Куриная грудка с рисом", 350, 420, 45.0, 6.0, 52.0)),
+        listOf(DishDto("Борщ с говядиной", 300, 250, 12.0, 8.0, 22.0, fiber = 5.5)),
+        listOf(DishDto("Куриная грудка с рисом", 350, 420, 45.0, 6.0, 52.0, fiber = 3.2)),
         listOf(
-            DishDto("Салат Цезарь", 200, 280, 14.0, 18.0, 12.0),
-            DishDto("Капучино", 250, 80, 4.0, 3.0, 8.0),
+            DishDto("Салат Цезарь", 200, 280, 14.0, 18.0, 12.0, fiber = 4.8),
+            DishDto("Капучино", 250, 80, 4.0, 3.0, 8.0, fiber = 0.5),
         ),
-        listOf(DishDto("Овсянка с бананом", 250, 320, 12.0, 8.0, 52.0)),
-        listOf(DishDto("Плов с бараниной", 320, 480, 22.0, 16.0, 58.0)),
+        listOf(DishDto("Овсянка с бананом", 250, 320, 12.0, 8.0, 52.0, fiber = 8.1)),
+        listOf(DishDto("Плов с бараниной", 320, 480, 22.0, 16.0, 58.0, fiber = 6.0)),
     )
 
     override suspend fun analyzeFood(imageBytes: ByteArray): List<DishDto> {

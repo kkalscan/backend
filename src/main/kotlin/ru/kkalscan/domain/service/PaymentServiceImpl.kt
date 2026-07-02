@@ -27,7 +27,63 @@ class PaymentServiceImpl(
     private val testPaymentNotifyTo: String = AppConfig.testPaymentNotifyTo,
     private val testPaymentSecret: String = AppConfig.testPaymentSecret,
     private val testPaymentEnabled: Boolean = AppConfig.testPaymentEnabled,
+    private val freeProActivationEnabled: Boolean = AppConfig.freeProActivationEnabled,
 ) : PaymentService {
+
+    override suspend fun startProSubscription(deviceId: UUID, tariff: String): PaymentService.ProSubscriptionStartResult {
+        deviceRepository.getOrCreate(deviceId)
+        if (tariff != TARIFF) throw BadRequestException("Неизвестный тариф")
+
+        if (freeProActivationEnabled) {
+            return activateFreePro(deviceId, tariff)
+        }
+
+        val payment = createTochkaPayment(deviceId, tariff)
+        return PaymentService.ProSubscriptionStartResult(
+            isPro = false,
+            proUntil = null,
+            tariff = tariff,
+            paymentRequired = true,
+            paymentUrl = payment.paymentUrl,
+            paymentId = payment.paymentId,
+        )
+    }
+
+    private suspend fun activateFreePro(deviceId: UUID, tariff: String): PaymentService.ProSubscriptionStartResult {
+        val paidAt = Instant.now()
+        val paymentId = UUID.randomUUID()
+        paymentRepository.create(
+            PaymentRecord(
+                id = paymentId,
+                deviceId = deviceId,
+                userId = deviceRepository.findById(deviceId)?.userId,
+                tochkaPaymentId = "free_$paymentId",
+                amountKopecks = 0,
+                tariff = tariff,
+                status = "free_promo",
+                paidAt = paidAt,
+            ),
+        )
+        subscriptionService.activatePro(deviceId, tariff, paidAt)
+
+        val status = subscriptionService.getStatus(
+            Actor(
+                deviceId = deviceId,
+                userId = deviceRepository.findById(deviceId)?.userId,
+                isPro = true,
+                accountLinked = false,
+                linkedProviders = emptyList(),
+            ),
+        )
+
+        return PaymentService.ProSubscriptionStartResult(
+            isPro = status.isPro,
+            proUntil = status.proUntil,
+            tariff = tariff,
+            paymentRequired = false,
+            message = "Pro активирован на ${PRO_DAYS} дней",
+        )
+    }
 
     override suspend fun createTochkaPayment(deviceId: UUID, tariff: String): PaymentCreateResponse {
         deviceRepository.getOrCreate(deviceId)
@@ -37,7 +93,7 @@ class PaymentServiceImpl(
         val baseUrl = AppConfig.publicBaseUrl.trimEnd('/')
         val tochka = tochkaClient.createPayment(
             amountKopecks = PRO_PRICE_KOPECKS,
-            description = "KkalScan Pro 15 ₽ (тест)",
+            description = "KkalScan Pro — ${PRO_PRICE_RUB} ₽/мес",
             metadata = mapOf(
                 "device_id" to deviceId.toString(),
                 "tariff" to tariff,
@@ -83,7 +139,7 @@ class PaymentServiceImpl(
                     appendLine()
                     appendLine("Device ID: $deviceId")
                     appendLine("Тариф: $TARIFF")
-                    appendLine("Сумма: ${PRO_PRICE_KOPECKS / 100.0} ₽ (тест)")
+                    appendLine("Сумма: ${PRO_PRICE_RUB} ₽")
                     appendLine("Оплачено: $paidAt")
                     appendLine("Срок: ${PRO_DAYS} дней")
                 },
@@ -151,6 +207,10 @@ class PaymentServiceImpl(
 
     override suspend fun renderPayPage(deviceId: UUID): String {
         deviceRepository.getOrCreate(deviceId)
+        if (freeProActivationEnabled) {
+            activateFreePro(deviceId, TARIFF)
+            return renderPaySuccessPage(deviceId)
+        }
         val response = createTochkaPayment(deviceId, TARIFF)
         val paymentUrl = response.paymentUrl
         return """
@@ -167,7 +227,7 @@ class PaymentServiceImpl(
               </style>
             </head>
             <body>
-              <h1>KkalScan Pro — 15 ₽ (тест)</h1>
+              <h1>KkalScan Pro — ${PRO_PRICE_RUB} ₽/мес</h1>
               <p>Безлимитные сканы калорий по фото. Оплата картой или СБП.</p>
               <p><a href="$paymentUrl">Перейти к оплате</a></p>
             </body>
@@ -215,6 +275,7 @@ class PaymentServiceImpl(
         """.trimIndent()
 
     companion object {
-        const val PRO_PRICE_KOPECKS = 1_500
+        const val PRO_PRICE_KOPECKS = 19_900
+        const val PRO_PRICE_RUB = 199
     }
 }

@@ -5,6 +5,12 @@ import ru.kkalscan.domain.model.MealType
 import ru.kkalscan.domain.model.OAuthProvider
 import ru.kkalscan.domain.port.BugReportRecord
 import ru.kkalscan.domain.port.BugReportRepository
+import ru.kkalscan.domain.features.FeatureSearchCatalog
+import ru.kkalscan.domain.port.FeatureSearchItemRecord
+import ru.kkalscan.domain.port.FeatureSearchRepository
+import ru.kkalscan.domain.port.SearchLogRecord
+import ru.kkalscan.domain.port.SearchLogRepository
+import ru.kkalscan.domain.port.SearchQueryStat
 import ru.kkalscan.domain.port.DeviceRecord
 import ru.kkalscan.domain.port.DeviceRepository
 import ru.kkalscan.domain.port.DiaryEntryRecord
@@ -193,6 +199,27 @@ class InMemoryVisionBudgetRepository : VisionBudgetRepository {
     }
 }
 
+class InMemorySearchLogRepository : SearchLogRepository {
+    private val logs = mutableListOf<SearchLogRecord>()
+
+    override suspend fun log(record: SearchLogRecord) {
+        synchronized(logs) { logs.add(record) }
+    }
+
+    override suspend fun topQueries(days: Int, limit: Int): List<SearchQueryStat> {
+        val cutoff = java.time.Instant.now().minus(java.time.Duration.ofDays(days.toLong()))
+        return synchronized(logs) {
+            logs
+                .groupBy { it.queryNormalized }
+                .map { (query, items) -> SearchQueryStat(query, items.size) }
+                .sortedWith(compareByDescending<SearchQueryStat> { it.count }.thenBy { it.query })
+                .take(limit)
+        }
+    }
+
+    fun all(): List<SearchLogRecord> = synchronized(logs) { logs.toList() }
+}
+
 class InMemoryBugReportRepository : BugReportRepository {
     private val reports = ConcurrentHashMap<UUID, BugReportRecord>()
     private val byDevice = ConcurrentHashMap<UUID, UUID>()
@@ -227,6 +254,11 @@ class InMemoryBugReportRepository : BugReportRepository {
     }
 }
 
+class InMemoryFeatureSearchRepository : FeatureSearchRepository {
+    override suspend fun listEnabled(locale: String): List<FeatureSearchItemRecord> =
+        FeatureSearchCatalog.items
+}
+
 data class InMemoryRepositories(
     val devices: InMemoryDeviceRepository = InMemoryDeviceRepository(),
     val quotas: InMemoryScanQuotaRepository = InMemoryScanQuotaRepository(),
@@ -237,4 +269,6 @@ data class InMemoryRepositories(
     val payments: InMemoryPaymentRepository = InMemoryPaymentRepository(),
     val visionBudget: InMemoryVisionBudgetRepository = InMemoryVisionBudgetRepository(),
     val bugReports: InMemoryBugReportRepository = InMemoryBugReportRepository(),
+    val searchLogs: InMemorySearchLogRepository = InMemorySearchLogRepository(),
+    val featureSearch: InMemoryFeatureSearchRepository = InMemoryFeatureSearchRepository(),
 )

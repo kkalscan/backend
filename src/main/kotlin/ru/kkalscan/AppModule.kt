@@ -2,11 +2,17 @@ package ru.kkalscan
 
 import ru.kkalscan.data.memory.InMemoryRepositories
 import ru.kkalscan.data.sqlite.SqliteBugReportRepository
+import ru.kkalscan.data.sqlite.SqliteFeatureSearchRepository
+import ru.kkalscan.data.sqlite.SqliteSearchLogRepository
 import ru.kkalscan.domain.port.AuthService
 import ru.kkalscan.domain.port.BugReportMailer
 import ru.kkalscan.domain.port.BugReportRepository
 import ru.kkalscan.domain.port.BugReportService
 import ru.kkalscan.domain.port.DiaryService
+import ru.kkalscan.domain.port.FeatureSearchRepository
+import ru.kkalscan.domain.port.FeatureSearchService
+import ru.kkalscan.domain.port.FoodSearchService
+import ru.kkalscan.domain.port.SearchLogRepository
 import ru.kkalscan.domain.port.IdentityResolver
 import ru.kkalscan.domain.port.PaymentService
 import ru.kkalscan.domain.port.PlainTextMailer
@@ -17,6 +23,8 @@ import ru.kkalscan.domain.service.AccountMergeServiceImpl
 import ru.kkalscan.domain.service.AuthServiceImpl
 import ru.kkalscan.domain.service.BugReportServiceImpl
 import ru.kkalscan.domain.service.DiaryServiceImpl
+import ru.kkalscan.domain.service.FeatureSearchServiceImpl
+import ru.kkalscan.domain.service.FoodSearchServiceImpl
 import ru.kkalscan.domain.service.IdentityResolverImpl
 import ru.kkalscan.domain.service.JwtIssuer
 import ru.kkalscan.domain.service.PaymentServiceImpl
@@ -44,6 +52,17 @@ data class AppModule(
 ) {
     val bugReportRepository: BugReportRepository =
         dataSource?.let { SqliteBugReportRepository(it) } ?: repos.bugReports
+
+    val searchLogRepository: SearchLogRepository =
+        dataSource?.let { SqliteSearchLogRepository(it) } ?: repos.searchLogs
+
+    val featureSearchRepository: FeatureSearchRepository =
+        dataSource?.let { SqliteFeatureSearchRepository(it) } ?: repos.featureSearch
+
+    val foodSearchService: FoodSearchService = FoodSearchServiceImpl(searchLogRepository)
+
+    val featureSearchService: FeatureSearchService =
+        FeatureSearchServiceImpl(featureSearchRepository, searchLogRepository)
 
     val bugReportMailer: BugReportMailer = bugReportMailerOverride ?: if (AppConfig.smtpConfigured) {
         SmtpBugReportMailer(

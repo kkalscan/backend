@@ -9,6 +9,6 @@ DEPLOY_PATH="${DEPLOY_PATH:-/opt/kkalscan}"
 JAR=$(ls build/libs/*-all.jar | head -1)
 
 scp "$JAR" "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/app.jar"
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cd ${DEPLOY_PATH} && docker compose up -d --build"
+ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cd ${DEPLOY_PATH} && docker compose -f docker-compose.prod.yml up -d --build"
 
 echo "Deployed to ${DEPLOY_HOST}"

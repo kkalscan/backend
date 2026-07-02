@@ -60,6 +60,13 @@ object AppConfig {
         ?: bugReportNotifyTo
 
     val testPaymentEnabled: Boolean get() = testPaymentSecret.isNotBlank()
+
+    /**
+     * When true, POST /api/v1/payments/pro/start activates Pro without Tochka payment.
+     * Set FREE_PRO_ACTIVATION=false on prod when real billing is ready.
+     */
+    val freeProActivationEnabled: Boolean =
+        System.getenv("FREE_PRO_ACTIVATION")?.toBooleanStrictOrNull() ?: true
 }
 
 internal fun normalizeOpenRouterModel(model: String): String =

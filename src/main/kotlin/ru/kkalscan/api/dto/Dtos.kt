@@ -39,6 +39,7 @@ data class ScanResponse(
     val total_protein: Double,
     val total_fat: Double,
     val total_carbs: Double,
+    val total_fiber: Double,
     val scans_left: Int? = null,
     val is_pro: Boolean,
     val disclaimer: String = "Оценка приблизительная, не медицинский совет",
@@ -135,7 +136,58 @@ data class PaymentCreateRequest(val device_id: String, val tariff: String = "pro
 data class PaymentCreateJson(val payment_url: String, val payment_id: String)
 
 @Serializable
+data class ProSubscriptionStartRequest(val device_id: String, val tariff: String = "pro_monthly_199")
+
+@Serializable
+data class ProSubscriptionStartResponse(
+    val is_pro: Boolean,
+    val pro_until: String? = null,
+    val tariff: String,
+    val payment_required: Boolean,
+    val payment_url: String? = null,
+    val payment_id: String? = null,
+    val message: String? = null,
+)
+
+@Serializable
 data class WebhookAck(val ok: Boolean = true)
+
+@Serializable
+data class FeatureSearchItemJson(
+    val id: String,
+    val title: String,
+    val subtitle: String? = null,
+    val deeplink: String,
+    val icon: String,
+)
+
+@Serializable
+data class FeatureSearchResponse(
+    val query: String,
+    val items: List<FeatureSearchItemJson>,
+    val total: Int,
+    @kotlinx.serialization.SerialName("popular_fallback")
+    val popularFallback: Boolean = false,
+)
+
+@Serializable
+data class FoodSearchResponse(
+    val query: String,
+    val items: List<DishDto>,
+    val total: Int,
+)
+
+@Serializable
+data class SearchQueryStatJson(
+    val query: String,
+    val count: Int,
+)
+
+@Serializable
+data class SearchTopResponse(
+    val days: Int,
+    val queries: List<SearchQueryStatJson>,
+)
 
 @Serializable
 data class BugReportResponse(
@@ -154,6 +206,7 @@ fun ScanService.ScanResult.toResponse() = ScanResponse(
     total_protein = totals.protein,
     total_fat = totals.fat,
     total_carbs = totals.carbs,
+    total_fiber = totals.fiber,
     scans_left = scansLeft,
     is_pro = isPro,
 )

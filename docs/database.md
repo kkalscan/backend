@@ -115,6 +115,7 @@ Index: `(device_id, created_at)`, `(user_id, created_at)`
 | `protein` | DOUBLE | |
 | `fat` | DOUBLE | |
 | `carbs` | DOUBLE | |
+| `fiber` | DOUBLE | default 0 |
 
 ### `payments`
 

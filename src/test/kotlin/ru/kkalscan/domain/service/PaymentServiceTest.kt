@@ -27,11 +27,70 @@ class PaymentServiceTest {
     private val deviceId = TestFixtures.deviceId
 
     @Test
+    fun `start pro subscription activates pro in free mode`() = runTest {
+        val service = PaymentServiceImpl(
+            repos.payments,
+            repos.devices,
+            subscriptionService,
+            StubTochkaClient(),
+            mailer,
+            testPaymentNotifyTo = "owner@example.com",
+            testPaymentSecret = "test-secret",
+            freeProActivationEnabled = true,
+        )
+
+        val result = service.startProSubscription(deviceId, SubscriptionServiceImpl.TARIFF)
+
+        assertTrue(result.isPro)
+        assertEquals(false, result.paymentRequired)
+        assertTrue(subscriptionService.getStatus(TestFixtures.guestActor()).isPro)
+    }
+
+    @Test
+    fun `start pro subscription returns payment url when free mode disabled`() = runTest {
+        val service = PaymentServiceImpl(
+            repos.payments,
+            repos.devices,
+            subscriptionService,
+            StubTochkaClient(),
+            mailer,
+            testPaymentNotifyTo = "owner@example.com",
+            testPaymentSecret = "test-secret",
+            freeProActivationEnabled = false,
+        )
+
+        val result = service.startProSubscription(deviceId, SubscriptionServiceImpl.TARIFF)
+
+        assertTrue(result.paymentRequired)
+        assertTrue(!result.paymentUrl.isNullOrBlank())
+        assertTrue(!subscriptionService.getStatus(TestFixtures.guestActor()).isPro)
+    }
+
+    @Test
     fun `create payment returns stub url`() = runTest {
         val response = service.createTochkaPayment(deviceId, SubscriptionServiceImpl.TARIFF)
 
         assertTrue(response.paymentUrl.contains("pay.tochka.example"))
         assertTrue(response.paymentId.toString().isNotBlank())
+    }
+
+    @Test
+    fun `pay page activates pro in free mode`() = runTest {
+        val service = PaymentServiceImpl(
+            repos.payments,
+            repos.devices,
+            subscriptionService,
+            StubTochkaClient(),
+            mailer,
+            testPaymentNotifyTo = "owner@example.com",
+            testPaymentSecret = "test-secret",
+            freeProActivationEnabled = true,
+        )
+
+        val html = service.renderPayPage(deviceId)
+
+        assertTrue(html.contains("Спасибо"))
+        assertTrue(subscriptionService.getStatus(TestFixtures.guestActor()).isPro)
     }
 
     @Test

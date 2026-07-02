@@ -581,6 +581,7 @@ data class DishDto(
     val protein: Double,
     val fat: Double,
     val carbs: Double,
+    val fiber: Double = 0.0,
 )
 
 @Serializable
@@ -589,6 +590,7 @@ data class MacroTotals(
     val protein: Double,
     val fat: Double,
     val carbs: Double,
+    val fiber: Double,
 )
 
 @Serializable

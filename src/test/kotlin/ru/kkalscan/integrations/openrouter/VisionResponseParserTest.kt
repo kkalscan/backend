@@ -7,10 +7,11 @@ class VisionResponseParserTest {
     @Test
     fun `parses plain json`() {
         val dishes = VisionResponseParser.parse(
-            """{"dishes":[{"name":"Борщ","grams":300,"kcal":180,"protein":8.5,"fat":6.2,"carbs":22.1}]}""",
+            """{"dishes":[{"name":"Борщ","grams":300,"kcal":180,"protein":8.5,"fat":6.2,"carbs":22.1,"fiber":4.4}]}""",
         )
         assertEquals("Борщ", dishes.single().name)
         assertEquals(180, dishes.single().kcal)
+        assertEquals(4.4, dishes.single().fiber)
     }
 
     @Test

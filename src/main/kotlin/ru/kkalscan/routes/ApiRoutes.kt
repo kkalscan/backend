@@ -10,12 +10,19 @@ import ru.kkalscan.AppConfig
 import ru.kkalscan.AppModule
 import ru.kkalscan.api.dto.AuthTokenJson
 import ru.kkalscan.api.dto.HealthResponse
+import ru.kkalscan.api.dto.FeatureSearchItemJson
+import ru.kkalscan.api.dto.FeatureSearchResponse
+import ru.kkalscan.api.dto.FoodSearchResponse
+import ru.kkalscan.api.dto.SearchQueryStatJson
+import ru.kkalscan.api.dto.SearchTopResponse
 import ru.kkalscan.api.dto.VisionHealthInfo
 import ru.kkalscan.api.dto.BonusResponse
 import ru.kkalscan.api.dto.BugReportResponse
 import ru.kkalscan.api.dto.DiaryEntryRequest
 import ru.kkalscan.api.dto.TestPaymentActivateRequest
 import ru.kkalscan.api.dto.TestPaymentActivateResponse
+import ru.kkalscan.api.dto.ProSubscriptionStartRequest
+import ru.kkalscan.api.dto.ProSubscriptionStartResponse
 import ru.kkalscan.api.dto.PaymentCreateJson
 import ru.kkalscan.api.dto.PaymentCreateRequest
 import ru.kkalscan.api.dto.ScanBonusRequest
@@ -48,7 +55,7 @@ fun Application.configureRouting(module: AppModule) {
         }
 
         get("/privacy") {
-            call.respondText("KkalScan — политика конфиденциальности (placeholder)", ContentType.Text.Plain)
+            call.respondText(PrivacyPolicyPage.html(), ContentType.Text.Html)
         }
 
         get("/pay") {
@@ -152,6 +159,23 @@ fun Application.configureRouting(module: AppModule) {
                 )
             }
 
+            post("/payments/pro/start") {
+                val body = call.receive<ProSubscriptionStartRequest>()
+                val deviceId = parseUuid(body.device_id, "device_id")
+                val result = module.paymentService.startProSubscription(deviceId, body.tariff)
+                call.respond(
+                    ProSubscriptionStartResponse(
+                        is_pro = result.isPro,
+                        pro_until = result.proUntil?.let { instantFormatter.format(it) },
+                        tariff = result.tariff,
+                        payment_required = result.paymentRequired,
+                        payment_url = result.paymentUrl,
+                        payment_id = result.paymentId?.toString(),
+                        message = result.message,
+                    ),
+                )
+            }
+
             post("/payments/tochka/create") {
                 val body = call.receive<PaymentCreateRequest>()
                 val response = module.paymentService.createTochkaPayment(
@@ -184,6 +208,57 @@ fun Application.configureRouting(module: AppModule) {
                         tariff = result.tariff,
                         email_sent = result.emailSent,
                         message = "Pro активирован на 30 дней (тестовая оплата)",
+                    ),
+                )
+            }
+
+            get("/features/search") {
+                val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
+                val query = call.request.queryParameters["q"] ?: ""
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+                val locale = call.request.queryParameters["locale"] ?: "ru"
+                val result = module.featureSearchService.search(deviceId, query, limit, locale)
+                call.respond(
+                    FeatureSearchResponse(
+                        query = result.query,
+                        items = result.items.map { item ->
+                            FeatureSearchItemJson(
+                                id = item.id,
+                                title = item.title,
+                                subtitle = item.subtitle,
+                                deeplink = item.deeplink,
+                                icon = item.icon,
+                            )
+                        },
+                        total = result.total,
+                        popularFallback = result.popularFallback,
+                    ),
+                )
+            }
+
+            get("/food/search") {
+                val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
+                val query = call.request.queryParameters["q"] ?: throw BadRequestException("q обязателен")
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+                val source = call.request.queryParameters["source"] ?: "diary"
+                val result = module.foodSearchService.search(deviceId, query, limit, source)
+                call.respond(
+                    FoodSearchResponse(
+                        query = result.query,
+                        items = result.items,
+                        total = result.total,
+                    ),
+                )
+            }
+
+            get("/analytics/search-top") {
+                val days = call.request.queryParameters["days"]?.toIntOrNull() ?: 30
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
+                val stats = module.foodSearchService.topQueries(days, limit)
+                call.respond(
+                    SearchTopResponse(
+                        days = days.coerceIn(1, 365),
+                        queries = stats.map { SearchQueryStatJson(it.query, it.count) },
                     ),
                 )
             }

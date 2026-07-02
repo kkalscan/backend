@@ -102,6 +102,8 @@ interface AccountMergeService {
 interface PaymentService {
     suspend fun createTochkaPayment(deviceId: UUID, tariff: String = "pro_monthly_199"): PaymentCreateResponse
 
+    suspend fun startProSubscription(deviceId: UUID, tariff: String = "pro_monthly_199"): ProSubscriptionStartResult
+
     suspend fun handleTochkaWebhook(rawBody: String, signature: String?)
 
     suspend fun activateTestPayment(deviceId: UUID, secret: String): TestPaymentResult
@@ -111,6 +113,16 @@ interface PaymentService {
     suspend fun renderPaySuccessPage(deviceId: UUID): String
 
     suspend fun renderPayFailPage(): String
+
+    data class ProSubscriptionStartResult(
+        val isPro: Boolean,
+        val proUntil: Instant?,
+        val tariff: String,
+        val paymentRequired: Boolean,
+        val paymentUrl: String? = null,
+        val paymentId: UUID? = null,
+        val message: String? = null,
+    )
 
     data class TestPaymentResult(
         val isPro: Boolean,

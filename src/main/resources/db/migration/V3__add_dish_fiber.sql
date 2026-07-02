@@ -1,0 +1,1 @@
+ALTER TABLE diary_dishes ADD COLUMN fiber REAL NOT NULL DEFAULT 0;

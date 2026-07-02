@@ -91,13 +91,15 @@
       "kcal": 180,
       "protein": 8.5,
       "fat": 6.2,
-      "carbs": 22.1
+      "carbs": 22.1,
+      "fiber": 4.0
     }
   ],
   "total_kcal": 180,
   "total_protein": 8.5,
   "total_fat": 6.2,
   "total_carbs": 22.1,
+  "total_fiber": 4.0,
   "scans_left": 2,
   "is_pro": false,
   "disclaimer": "Оценка приблизительная, не медицинский совет"

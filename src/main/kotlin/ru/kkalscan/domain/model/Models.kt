@@ -25,6 +25,7 @@ data class DishDto(
     val protein: Double,
     val fat: Double,
     val carbs: Double,
+    val fiber: Double = 0.0,
 )
 
 @Serializable
@@ -33,6 +34,7 @@ data class MacroTotals(
     val protein: Double,
     val fat: Double,
     val carbs: Double,
+    val fiber: Double,
 ) {
     companion object {
         fun from(dishes: List<DishDto>): MacroTotals =
@@ -41,6 +43,7 @@ data class MacroTotals(
                 protein = dishes.sumOf { it.protein },
                 fat = dishes.sumOf { it.fat },
                 carbs = dishes.sumOf { it.carbs },
+                fiber = dishes.sumOf { it.fiber },
             )
     }
 }

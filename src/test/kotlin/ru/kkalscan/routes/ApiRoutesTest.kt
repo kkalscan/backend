@@ -11,6 +11,7 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.double
 import ru.kkalscan.AppConfig
 import ru.kkalscan.TestFixtures
 import ru.kkalscan.testModule
@@ -35,9 +36,13 @@ class ApiRoutesTest {
         application { testModule(TestFixtures.freshModule()) }
 
         assertEquals(HttpStatusCode.OK, client.get("/privacy").status)
+        val privacy = client.get("/privacy").bodyAsText()
+        assertTrue(privacy.contains("политика конфиденциальности"))
+        assertTrue(privacy.contains("device_id"))
         val pay = client.get("/pay?device_id=$deviceId")
         assertEquals(HttpStatusCode.OK, pay.status)
-        assertTrue(pay.bodyAsText().contains("KkalScan Pro"))
+        val payHtml = pay.bodyAsText()
+        assertTrue(payHtml.contains("KkalScan Pro") || payHtml.contains("Спасибо"))
     }
 
     @Test
@@ -91,7 +96,7 @@ class ApiRoutesTest {
                   "device_id": "$deviceId",
                   "meal_type": "breakfast",
                   "dishes": [
-                    {"name": "Овсянка", "grams": 200, "kcal": 150, "protein": 5.0, "fat": 3.0, "carbs": 27.0}
+                    {"name": "Овсянка", "grams": 200, "kcal": 150, "protein": 5.0, "fat": 3.0, "carbs": 27.0, "fiber": 4.2}
                   ]
                 }
                 """.trimIndent(),
@@ -100,6 +105,8 @@ class ApiRoutesTest {
         assertEquals(HttpStatusCode.Created, response.status)
         val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals(150, body["entry"]!!.jsonObject["total_kcal"]!!.jsonPrimitive.int)
+        val dish = body["entry"]!!.jsonObject["dishes"]!!.jsonArray.single().jsonObject
+        assertEquals(4.2, dish["fiber"]!!.jsonPrimitive.double)
     }
 
     @Test
@@ -146,6 +153,27 @@ class ApiRoutesTest {
         val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals(5, body["scans_left"]!!.jsonPrimitive.int)
         assertTrue(body["bonus_granted"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `pro start activates pro without payment when free mode enabled`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+
+        val response = client.post("/api/v1/payments/pro/start") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"device_id":"$deviceId","tariff":"pro_monthly_199"}""")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertTrue(body["is_pro"]!!.jsonPrimitive.boolean)
+        assertEquals(false, body["payment_required"]!!.jsonPrimitive.boolean)
+
+        val status = client.get("/api/v1/subscription/status") {
+            header("X-Device-Id", deviceId)
+        }
+        assertTrue(
+            json.parseToJsonElement(status.bodyAsText()).jsonObject["is_pro"]!!.jsonPrimitive.boolean,
+        )
     }
 
     @Test
@@ -285,5 +313,68 @@ class ApiRoutesTest {
             )
         }
         assertEquals(HttpStatusCode.Conflict, second.status)
+    }
+
+    @Test
+    fun `food search logs queries and returns results`() = testApplication {
+        val module = TestFixtures.freshModule()
+        application { testModule(module) }
+
+        val search = client.get("/api/v1/food/search?q=борщ&source=diary") {
+            header("X-Device-Id", deviceId)
+        }
+        assertEquals(HttpStatusCode.OK, search.status)
+        val body = json.parseToJsonElement(search.bodyAsText()).jsonObject
+        assertTrue(body["items"]!!.jsonArray.isNotEmpty())
+        assertEquals("борщ", body["query"]!!.jsonPrimitive.content)
+
+        val empty = client.get("/api/v1/food/search?q=xyzunknown123&source=diary") {
+            header("X-Device-Id", deviceId)
+        }
+        assertEquals(HttpStatusCode.OK, empty.status)
+        assertTrue(json.parseToJsonElement(empty.bodyAsText()).jsonObject["items"]!!.jsonArray.isEmpty())
+
+        val top = client.get("/api/v1/analytics/search-top?days=30&limit=10")
+        assertEquals(HttpStatusCode.OK, top.status)
+        val queries = json.parseToJsonElement(top.bodyAsText()).jsonObject["queries"]!!.jsonArray
+        assertTrue(queries.any { it.jsonObject["query"]!!.jsonPrimitive.content == "борщ" })
+        assertTrue(queries.any { it.jsonObject["query"]!!.jsonPrimitive.content == "xyzunknown123" })
+    }
+
+    @Test
+    fun `feature search returns deeplinks and logs queries`() = testApplication {
+        val module = TestFixtures.freshModule()
+        application { testModule(module) }
+
+        val popular = client.get("/api/v1/features/search") {
+            header("X-Device-Id", deviceId)
+        }
+        assertEquals(HttpStatusCode.OK, popular.status)
+        val popularBody = json.parseToJsonElement(popular.bodyAsText()).jsonObject
+        assertEquals(0, popularBody["items"]!!.jsonArray.size)
+
+        val unknown = client.get("/api/v1/features/search?q=xyzunknown123") {
+            header("X-Device-Id", deviceId)
+        }
+        assertEquals(HttpStatusCode.OK, unknown.status)
+        val unknownBody = json.parseToJsonElement(unknown.bodyAsText()).jsonObject
+        assertTrue(unknownBody["items"]!!.jsonArray.size >= 3)
+        assertTrue(unknownBody["popular_fallback"]!!.jsonPrimitive.boolean)
+
+        val profile = client.get("/api/v1/features/search?q=профиль") {
+            header("X-Device-Id", deviceId)
+        }
+        assertEquals(HttpStatusCode.OK, profile.status)
+        val profileBody = json.parseToJsonElement(profile.bodyAsText()).jsonObject
+        assertTrue(
+            profileBody["items"]!!.jsonArray.any {
+                it.jsonObject["deeplink"]!!.jsonPrimitive.content == "kkalscan://profile"
+            },
+        )
+
+        val top = client.get("/api/v1/analytics/search-top?days=30&limit=20")
+        assertEquals(HttpStatusCode.OK, top.status)
+        val queries = json.parseToJsonElement(top.bodyAsText()).jsonObject["queries"]!!.jsonArray
+        assertTrue(queries.any { it.jsonObject["query"]!!.jsonPrimitive.content == "профиль" })
     }
 }
