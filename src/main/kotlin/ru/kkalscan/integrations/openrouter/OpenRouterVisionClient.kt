@@ -49,6 +49,32 @@ class OpenRouterVisionClient(
         return VisionResponseParser.parse(content)
     }
 
+    override suspend fun analyzeDescription(description: String): List<DishDto> {
+        val body = OpenRouterRequestBuilder.buildText(model, description)
+        val responseText = try {
+            val response = httpClient.post("$baseUrl/chat/completions") {
+                header(HttpHeaders.Authorization, "Bearer $apiKey")
+                header("HTTP-Referer", appUrl)
+                header("X-Title", appName)
+                contentType(ContentType.Application.Json)
+                setBody(body.toString())
+            }
+            if (!response.status.isSuccess()) {
+                val errBody = response.bodyAsText()
+                val message = openRouterErrorMessage(response.status.value, errBody, model)
+                throw VisionUnavailableException(message, RuntimeException("OpenRouter HTTP ${response.status}: $errBody"))
+            }
+            response.bodyAsText()
+        } catch (e: VisionUnavailableException) {
+            throw e
+        } catch (e: Exception) {
+            throw VisionUnavailableException(cause = e)
+        }
+
+        val content = parseOpenRouterResponse(responseText, json)
+        return VisionResponseParser.parse(content)
+    }
+
     private fun openRouterErrorMessage(status: Int, body: String, model: String): String = when (status) {
         401 -> "OpenRouter: неверный API-ключ. Проверьте OPENROUTER_API_KEY."
         402 -> "OpenRouter: недостаточно средств на балансе."

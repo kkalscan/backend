@@ -85,6 +85,53 @@ class ApiRoutesTest {
     }
 
     @Test
+    fun `scan text and diary flow`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+
+        val scanResponse = client.post("/api/v1/scan/text") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "description": "тарелка борща и кусок хлеба"
+                }
+                """.trimIndent(),
+            )
+        }
+        assertEquals(HttpStatusCode.OK, scanResponse.status)
+        val scanBody = json.parseToJsonElement(scanResponse.bodyAsText()).jsonObject
+        val scanId = scanBody["scan_id"]!!.jsonPrimitive.content
+        assertTrue(scanBody["dishes"]!!.jsonArray.isNotEmpty())
+        assertEquals(3, scanBody["scans_left"]!!.jsonPrimitive.int)
+
+        val diaryResponse = client.post("/api/v1/diary/entries") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "meal_type": "lunch",
+                  "scan_id": "$scanId"
+                }
+                """.trimIndent(),
+            )
+        }
+        assertEquals(HttpStatusCode.Created, diaryResponse.status)
+        val diaryBody = json.parseToJsonElement(diaryResponse.bodyAsText()).jsonObject
+        assertEquals(2, diaryBody["scans_left"]!!.jsonPrimitive.int)
+        val entry = diaryBody["entry"]!!.jsonObject
+        assertTrue(entry["dishes"]!!.jsonArray.isNotEmpty())
+
+        val today = LocalDate.now().toString()
+        val dayResponse = client.get("/api/v1/diary?device_id=$deviceId&date=$today&timezone_offset_minutes=180")
+        assertEquals(HttpStatusCode.OK, dayResponse.status)
+        val dayBody = json.parseToJsonElement(dayResponse.bodyAsText()).jsonObject
+        assertEquals(1, dayBody["entries"]!!.jsonArray.size)
+        assertTrue(dayBody["total_kcal"]!!.jsonPrimitive.int > 0)
+    }
+
+    @Test
     fun `diary entry with dishes`() = testApplication {
         application { testModule(TestFixtures.freshModule()) }
 

@@ -58,6 +58,13 @@ data class DeviceIdBody(val device_id: String)
 data class ScanBonusRequest(val device_id: String)
 
 @Serializable
+data class ScanTextRequest(
+    val device_id: String,
+    val description: String,
+    val timezone_offset_minutes: Int = 180,
+)
+
+@Serializable
 data class DiaryEntryRequest(
     val device_id: String,
     val meal_type: MealType,

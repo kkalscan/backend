@@ -26,6 +26,7 @@ import ru.kkalscan.api.dto.ProSubscriptionStartResponse
 import ru.kkalscan.api.dto.PaymentCreateJson
 import ru.kkalscan.api.dto.PaymentCreateRequest
 import ru.kkalscan.api.dto.ScanBonusRequest
+import ru.kkalscan.api.dto.ScanTextRequest
 import ru.kkalscan.api.dto.ScanResponse
 import ru.kkalscan.api.dto.SubscriptionStatusResponse
 import ru.kkalscan.api.dto.VkAuthRequest
@@ -96,6 +97,20 @@ fun Application.configureRouting(module: AppModule) {
                 val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
                 val localDate = LocalDate.now()
                 val result = module.scanService.analyzePhoto(actor, photo, localDate, tzOffset)
+                call.respond(HttpStatusCode.OK, result.toResponse())
+            }
+
+            post("/scan/text") {
+                val body = call.receive<ScanTextRequest>()
+                val deviceId = parseUuid(body.device_id, "device_id")
+                val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
+                val localDate = LocalDate.now()
+                val result = module.scanService.analyzeDescription(
+                    actor,
+                    body.description,
+                    localDate,
+                    body.timezone_offset_minutes,
+                )
                 call.respond(HttpStatusCode.OK, result.toResponse())
             }
 

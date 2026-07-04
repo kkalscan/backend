@@ -43,6 +43,27 @@ class StubVisionClient : VisionClient {
         return dishes
     }
 
+    override suspend fun analyzeDescription(description: String): List<DishDto> {
+        delay(STUB_LATENCY_MS)
+        val normalized = description.trim().lowercase()
+        val index = when {
+            normalized.contains("борщ") -> 0
+            normalized.contains("куриц") || normalized.contains("рис") -> 1
+            normalized.contains("салат") || normalized.contains("капуч") -> 2
+            normalized.contains("овсян") || normalized.contains("банан") -> 3
+            normalized.contains("плов") -> 4
+            else -> (normalized.hashCode().absoluteValue) % presets.size
+        }
+        val dishes = presets[index]
+        log.info(
+            "stub vision text: {} chars -> preset {} ({})",
+            description.length,
+            index,
+            dishes.joinToString { it.name },
+        )
+        return dishes
+    }
+
     private companion object {
         const val STUB_LATENCY_MS = 900L
     }

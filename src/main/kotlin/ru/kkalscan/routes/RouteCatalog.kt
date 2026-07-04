@@ -7,6 +7,7 @@ package ru.kkalscan.routes
  * |--------|------|---------|
  * | GET | /health | HealthRoutes |
  * | POST | /api/v1/scan | ScanRoutes.postScan |
+ * | POST | /api/v1/scan/text | ScanRoutes.postScanText |
  * | POST | /api/v1/scan/bonus | ScanRoutes.postBonus |
  * | GET | /api/v1/diary | DiaryRoutes.getDiary |
  * | POST | /api/v1/diary/entries | DiaryRoutes.postEntry |

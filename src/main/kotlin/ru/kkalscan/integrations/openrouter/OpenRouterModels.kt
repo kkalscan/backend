@@ -18,6 +18,20 @@ internal object FoodVisionPrompt {
     """.trimIndent()
 }
 
+internal object FoodTextPrompt {
+    val SYSTEM = """
+        Ты диетолог-помощник для приложения подсчёта калорий в России.
+        Пользователь описывает текстом или голосом, что съел: блюда, примерный объём, вес или «тарелка».
+        Оцени порции реалистично по описанию. Если несколько блюд — перечисли все.
+        Верни ТОЛЬКО JSON без markdown в формате:
+        {"dishes":[{"name":"название на русском","grams":300,"kcal":180,"protein":8.5,"fat":6.2,"carbs":22.1,"fiber":4.0}]}
+        Если из описания нельзя понять еду — {"dishes":[]}
+    """.trimIndent()
+
+    fun userMessage(description: String): String =
+        "Описание пользователя:\n${description.trim()}"
+}
+
 @Serializable
 internal data class DishesEnvelope(val dishes: List<DishDto>)
 
@@ -76,6 +90,27 @@ internal object OpenRouterRequestBuilder {
                                 )
                             },
                         )
+                    },
+                )
+            },
+        )
+    }
+
+    fun buildText(model: String, description: String): JsonObject = buildJsonObject {
+        put("model", JsonPrimitive(model))
+        put(
+            "messages",
+            buildJsonArray {
+                add(
+                    buildJsonObject {
+                        put("role", JsonPrimitive("system"))
+                        put("content", JsonPrimitive(FoodTextPrompt.SYSTEM))
+                    },
+                )
+                add(
+                    buildJsonObject {
+                        put("role", JsonPrimitive("user"))
+                        put("content", JsonPrimitive(FoodTextPrompt.userMessage(description)))
                     },
                 )
             },

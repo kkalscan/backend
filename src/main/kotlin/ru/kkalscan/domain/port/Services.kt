@@ -21,6 +21,13 @@ interface ScanService {
         timezoneOffsetMinutes: Int,
     ): ScanResult
 
+    suspend fun analyzeDescription(
+        actor: Actor,
+        description: String,
+        localDate: LocalDate,
+        timezoneOffsetMinutes: Int,
+    ): ScanResult
+
     data class ScanResult(
         val scanId: UUID,
         val dishes: List<DishDto>,
@@ -306,6 +313,8 @@ interface VisionBudgetRepository {
 
 interface VisionClient {
     suspend fun analyzeFood(imageBytes: ByteArray): List<DishDto>
+
+    suspend fun analyzeDescription(description: String): List<DishDto>
 }
 
 interface VkAuthClient {

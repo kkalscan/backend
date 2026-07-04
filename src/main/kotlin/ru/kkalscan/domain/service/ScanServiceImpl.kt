@@ -90,8 +90,76 @@ class ScanServiceImpl(
         )
     }
 
+    override suspend fun analyzeDescription(
+        actor: Actor,
+        description: String,
+        localDate: LocalDate,
+        timezoneOffsetMinutes: Int,
+    ): ScanService.ScanResult {
+        val trimmed = description.trim()
+        if (trimmed.length < MIN_DESCRIPTION_CHARS) {
+            throw BadRequestException("Опишите, что вы съели — минимум $MIN_DESCRIPTION_CHARS символа")
+        }
+        if (trimmed.length > MAX_DESCRIPTION_CHARS) {
+            throw BadRequestException("Описание слишком длинное — до $MAX_DESCRIPTION_CHARS символов")
+        }
+        if (!quotaService.canStartScan(actor, localDate)) {
+            val left = quotaService.getScansLeft(actor, localDate) ?: 0
+            log.info("describe limit_hit device={} left={}", mask(actor.deviceId), left)
+            throw LimitHitException(left)
+        }
+
+        log.info(
+            "describe start device={} chars={} provider={}",
+            mask(actor.deviceId),
+            trimmed.length,
+            AppConfig.visionProvider,
+        )
+
+        val month = YearMonth.from(localDate)
+        if (visionBudgetRepository.getMonthCost(month) >= AppConfig.visionMonthlyBudgetRub) {
+            throw VisionBudgetExceededException()
+        }
+
+        val dishes = try {
+            visionClient.analyzeDescription(trimmed)
+        } catch (e: Exception) {
+            log.warn("describe vision_failed device={}: {}", mask(actor.deviceId), e.message)
+            throw VisionUnavailableException(cause = e)
+        }
+
+        if (dishes.isEmpty()) {
+            log.warn("describe no_food device={}", mask(actor.deviceId))
+            throw VisionUnavailableException("Не удалось понять описание. Уточните блюдо и порцию.")
+        }
+
+        visionBudgetRepository.addCost(month, AppConfig.visionCostPerRequestRub)
+
+        val scanId = scanSessionRepository.create(actor.deviceId, dishes)
+        val totals = MacroTotals.from(dishes)
+
+        log.info(
+            "describe ok device={} scanId={} dishes={} kcal={} left={}",
+            mask(actor.deviceId),
+            scanId.toString().take(8),
+            dishes.size,
+            totals.kcal,
+            quotaService.getScansLeft(actor, localDate),
+        )
+
+        return ScanService.ScanResult(
+            scanId = scanId,
+            dishes = dishes,
+            totals = totals,
+            scansLeft = quotaService.getScansLeft(actor, localDate),
+            isPro = actor.isPro,
+        )
+    }
+
     companion object {
         const val MAX_PHOTO_BYTES = 600 * 1024
+        const val MIN_DESCRIPTION_CHARS = 3
+        const val MAX_DESCRIPTION_CHARS = 2000
 
         private fun mask(deviceId: java.util.UUID): String = deviceId.toString().take(8) + "…"
     }
