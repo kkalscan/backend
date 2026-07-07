@@ -96,18 +96,19 @@ class ScanAndDiaryServiceTest {
 
     @Test
     fun `workout reduces net kcal in diary day`() = runTest {
-        val scan = scanService.analyzePhoto(actor, photo, date, 180)
+        val today = LocalDate.now()
+        val scan = scanService.analyzePhoto(actor, photo, today, 180)
         diaryService.addEntry(
             actor,
             DiaryService.CreateDiaryEntryRequest(MealType.lunch, scanId = scan.scanId),
-            date,
+            today,
         )
         diaryService.addWorkout(
             actor,
             DiaryService.CreateWorkoutRequest(name = "Бег", kcal = 300),
-            date,
+            today,
         )
-        val day = diaryService.getDay(actor, date, 180)
+        val day = diaryService.getDay(actor, today, 180)
         assertEquals(100, day.totalKcal)
         assertEquals(300, day.totalBurnedKcal)
         assertEquals(-200, day.netKcal)
