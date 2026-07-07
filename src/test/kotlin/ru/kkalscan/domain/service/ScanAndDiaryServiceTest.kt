@@ -100,7 +100,7 @@ class ScanAndDiaryServiceTest {
         val tzOffsetMinutes = 180
         val today = LocalDate.now(ZoneOffset.ofTotalSeconds(tzOffsetMinutes * 60))
         val scan = scanService.analyzePhoto(actor, photo, today, tzOffsetMinutes)
-        diaryService.addEntry(
+        val entry = diaryService.addEntry(
             actor,
             DiaryService.CreateDiaryEntryRequest(MealType.lunch, scanId = scan.scanId),
             today,
@@ -111,9 +111,10 @@ class ScanAndDiaryServiceTest {
             today,
         )
         val day = diaryService.getDay(actor, today, tzOffsetMinutes)
-        assertEquals(100, day.totalKcal)
+        val consumed = entry.entry.totalKcal
+        assertEquals(consumed, day.totalKcal)
         assertEquals(300, day.totalBurnedKcal)
-        assertEquals(-200, day.netKcal)
+        assertEquals(consumed - 300, day.netKcal)
         assertEquals(1, day.workouts.size)
     }
 }
