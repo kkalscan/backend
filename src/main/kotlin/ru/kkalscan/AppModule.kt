@@ -19,6 +19,7 @@ import ru.kkalscan.domain.port.PaymentService
 import ru.kkalscan.domain.port.PlainTextMailer
 import ru.kkalscan.domain.port.QuotaService
 import ru.kkalscan.domain.port.ScanService
+import ru.kkalscan.domain.port.SubscriptionService
 import ru.kkalscan.domain.port.WorkoutRepository
 import ru.kkalscan.domain.service.AccountMergeServiceImpl
 import ru.kkalscan.domain.service.AuthServiceImpl

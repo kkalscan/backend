@@ -30,8 +30,10 @@ import ru.kkalscan.api.dto.ScanTextRequest
 import ru.kkalscan.api.dto.ScanResponse
 import ru.kkalscan.api.dto.SubscriptionStatusResponse
 import ru.kkalscan.api.dto.VkAuthRequest
+import ru.kkalscan.api.dto.WebhookAck
 import ru.kkalscan.api.dto.WorkoutRequest
 import ru.kkalscan.api.dto.WorkoutResponse
+import ru.kkalscan.api.dto.toJson
 import ru.kkalscan.api.dto.toResponse
 import ru.kkalscan.domain.BadRequestException
 import ru.kkalscan.domain.port.DiaryService
