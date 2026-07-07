@@ -49,6 +49,13 @@ data class MacroTotals(
 }
 
 @Serializable
+data class WorkoutParseResult(
+    val title: String,
+    val burnedKcal: Int,
+    val durationMinutes: Int? = null,
+)
+
+@Serializable
 data class ApiError(
     val error: String,
     val message: String,

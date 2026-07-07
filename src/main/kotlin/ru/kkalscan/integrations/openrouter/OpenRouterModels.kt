@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import ru.kkalscan.domain.model.DishDto
+import ru.kkalscan.domain.model.WorkoutParseResult
 
 internal object FoodVisionPrompt {
     val TEXT = """
@@ -32,8 +33,29 @@ internal object FoodTextPrompt {
         "Описание пользователя:\n${description.trim()}"
 }
 
+internal object WorkoutTextPrompt {
+    val SYSTEM = """
+        Ты фитнес-помощник для приложения подсчёта калорий в России.
+        Пользователь описывает текстом тренировку и длительность: «бег 30 минут», «йога 45 мин», «плавание час».
+        Оцени сожжённые калории для взрослого со средней физической формой (~70 кг), если вес не указан.
+        Верни ТОЛЬКО JSON без markdown в формате:
+        {"title":"краткое название на русском","burned_kcal":280,"duration_minutes":30}
+        Если из описания нельзя понять активность — {"title":"","burned_kcal":0,"duration_minutes":null}
+    """.trimIndent()
+
+    fun userMessage(description: String): String =
+        "Описание тренировки:\n${description.trim()}"
+}
+
 @Serializable
 internal data class DishesEnvelope(val dishes: List<DishDto>)
+
+@Serializable
+internal data class WorkoutParseEnvelope(
+    val title: String,
+    val burned_kcal: Int,
+    val duration_minutes: Int? = null,
+)
 
 internal object VisionResponseParser {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -41,6 +63,16 @@ internal object VisionResponseParser {
     fun parse(content: String): List<DishDto> {
         val payload = extractJsonPayload(content.trim())
         return json.decodeFromString<DishesEnvelope>(payload).dishes
+    }
+
+    fun parseWorkout(content: String): WorkoutParseResult {
+        val payload = extractJsonPayload(content.trim())
+        val envelope = json.decodeFromString<WorkoutParseEnvelope>(payload)
+        return WorkoutParseResult(
+            title = envelope.title.trim(),
+            burnedKcal = envelope.burned_kcal,
+            durationMinutes = envelope.duration_minutes,
+        )
     }
 
     private fun extractJsonPayload(raw: String): String {
@@ -111,6 +143,27 @@ internal object OpenRouterRequestBuilder {
                     buildJsonObject {
                         put("role", JsonPrimitive("user"))
                         put("content", JsonPrimitive(FoodTextPrompt.userMessage(description)))
+                    },
+                )
+            },
+        )
+    }
+
+    fun buildWorkoutText(model: String, description: String): JsonObject = buildJsonObject {
+        put("model", JsonPrimitive(model))
+        put(
+            "messages",
+            buildJsonArray {
+                add(
+                    buildJsonObject {
+                        put("role", JsonPrimitive("system"))
+                        put("content", JsonPrimitive(WorkoutTextPrompt.SYSTEM))
+                    },
+                )
+                add(
+                    buildJsonObject {
+                        put("role", JsonPrimitive("user"))
+                        put("content", JsonPrimitive(WorkoutTextPrompt.userMessage(description)))
                     },
                 )
             },

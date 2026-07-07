@@ -190,6 +190,28 @@ class ApiRoutesTest {
     }
 
     @Test
+    fun `workout text parse returns ai estimate`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+
+        val response = client.post("/api/v1/workout/text") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "description": "бег 30 минут"
+                }
+                """.trimIndent(),
+            )
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals("Бег", body["title"]!!.jsonPrimitive.content)
+        assertEquals(300, body["burned_kcal"]!!.jsonPrimitive.int)
+        assertEquals(30, body["duration_minutes"]!!.jsonPrimitive.int)
+    }
+
+    @Test
     fun `workout create updates diary balance`() = testApplication {
         application { testModule(TestFixtures.freshModule()) }
         val today = LocalDate.now().toString()

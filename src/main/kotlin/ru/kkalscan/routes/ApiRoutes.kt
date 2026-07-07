@@ -33,6 +33,8 @@ import ru.kkalscan.api.dto.VkAuthRequest
 import ru.kkalscan.api.dto.WebhookAck
 import ru.kkalscan.api.dto.WorkoutRequest
 import ru.kkalscan.api.dto.WorkoutResponse
+import ru.kkalscan.api.dto.WorkoutTextRequest
+import ru.kkalscan.api.dto.WorkoutParseResponse
 import ru.kkalscan.api.dto.toJson
 import ru.kkalscan.api.dto.toResponse
 import ru.kkalscan.domain.BadRequestException
@@ -152,6 +154,21 @@ fun Application.configureRouting(module: AppModule) {
                 val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
                 module.diaryService.deleteEntry(actor, entryId)
                 call.respond(HttpStatusCode.NoContent)
+            }
+
+            post("/workout/text") {
+                val body = call.receive<WorkoutTextRequest>()
+                val deviceId = parseUuid(body.device_id, "device_id")
+                val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
+                val result = module.diaryService.parseWorkoutDescription(actor, body.description)
+                call.respond(
+                    HttpStatusCode.OK,
+                    WorkoutParseResponse(
+                        title = result.title,
+                        burned_kcal = result.burnedKcal,
+                        duration_minutes = result.durationMinutes,
+                    ),
+                )
             }
 
             post("/diary/workouts") {

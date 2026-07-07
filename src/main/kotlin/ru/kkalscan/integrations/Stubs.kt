@@ -3,6 +3,7 @@ package ru.kkalscan.integrations
 import kotlinx.coroutines.delay
 import org.slf4j.LoggerFactory
 import ru.kkalscan.domain.model.DishDto
+import ru.kkalscan.domain.model.WorkoutParseResult
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -62,6 +63,36 @@ class StubVisionClient : VisionClient {
             dishes.joinToString { it.name },
         )
         return dishes
+    }
+
+    override suspend fun analyzeWorkout(description: String): WorkoutParseResult {
+        delay(STUB_LATENCY_MS)
+        val normalized = description.trim().lowercase()
+        val minutes = Regex("(\\d+)\\s*мин").find(normalized)?.groupValues?.get(1)?.toIntOrNull()
+            ?: Regex("(\\d+)\\s*ч").find(normalized)?.groupValues?.get(1)?.toIntOrNull()?.times(60)
+            ?: 30
+        val (title, kcalPerMinute) = when {
+            normalized.contains("бег") || normalized.contains("пробеж") -> "Бег" to 10
+            normalized.contains("йога") -> "Йога" to 4
+            normalized.contains("плава") -> "Плавание" to 8
+            normalized.contains("ходьб") -> "Ходьба" to 5
+            normalized.contains("велос") || normalized.contains("вел ") -> "Велосипед" to 9
+            normalized.contains("силов") || normalized.contains("зал") -> "Силовая тренировка" to 7
+            else -> "Тренировка" to 7
+        }
+        val burnedKcal = (kcalPerMinute * minutes).coerceIn(50, 1500)
+        log.info(
+            "stub vision workout: {} chars -> {} {} min {} kcal",
+            description.length,
+            title,
+            minutes,
+            burnedKcal,
+        )
+        return WorkoutParseResult(
+            title = title,
+            burnedKcal = burnedKcal,
+            durationMinutes = minutes,
+        )
     }
 
     private companion object {

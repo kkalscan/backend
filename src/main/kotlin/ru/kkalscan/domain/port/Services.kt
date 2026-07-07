@@ -3,6 +3,7 @@ package ru.kkalscan.domain.port
 import ru.kkalscan.domain.model.Actor
 import ru.kkalscan.domain.model.DishDto
 import ru.kkalscan.domain.model.MealType
+import ru.kkalscan.domain.model.WorkoutParseResult
 import ru.kkalscan.domain.model.OAuthProvider
 import java.time.Instant
 import java.time.LocalDate
@@ -78,6 +79,8 @@ interface DiaryService {
     ): CreateWorkoutResponse
 
     suspend fun deleteWorkout(actor: Actor, workoutId: UUID)
+
+    suspend fun parseWorkoutDescription(actor: Actor, description: String): WorkoutParseResult
 
     data class CreateDiaryEntryRequest(
         val mealType: MealType,
@@ -356,6 +359,8 @@ interface VisionClient {
     suspend fun analyzeFood(imageBytes: ByteArray): List<DishDto>
 
     suspend fun analyzeDescription(description: String): List<DishDto>
+
+    suspend fun analyzeWorkout(description: String): WorkoutParseResult
 }
 
 interface VkAuthClient {

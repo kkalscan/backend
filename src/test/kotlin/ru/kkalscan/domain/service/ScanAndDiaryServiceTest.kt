@@ -22,7 +22,14 @@ class ScanAndDiaryServiceTest {
         repos.scanSessions,
         repos.visionBudget,
     )
-    private val diaryService = DiaryServiceImpl(repos.diary, repos.workouts, quotaService, repos.scanSessions)
+    private val diaryService = DiaryServiceImpl(
+        repos.diary,
+        repos.workouts,
+        quotaService,
+        repos.scanSessions,
+        StubVisionClient(),
+        repos.visionBudget,
+    )
     private val date = LocalDate.of(2026, 6, 14)
     private val actor = TestFixtures.guestActor()
     private val photo = ByteArray(1024) { 0xFF.toByte() }
@@ -116,5 +123,13 @@ class ScanAndDiaryServiceTest {
         assertEquals(300, day.totalBurnedKcal)
         assertEquals(consumed - 300, day.netKcal)
         assertEquals(1, day.workouts.size)
+    }
+
+    @Test
+    fun `parse workout description returns title and calories`() = runTest {
+        val parsed = diaryService.parseWorkoutDescription(actor, "бег 30 минут")
+        assertEquals("Бег", parsed.title)
+        assertEquals(300, parsed.burnedKcal)
+        assertEquals(30, parsed.durationMinutes)
     }
 }

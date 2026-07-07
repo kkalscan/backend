@@ -6,6 +6,7 @@ import ru.kkalscan.domain.ForbiddenException
 import ru.kkalscan.domain.NotFoundException
 import ru.kkalscan.domain.model.Actor
 import ru.kkalscan.domain.model.DishDto
+import ru.kkalscan.domain.model.WorkoutParseResult
 import ru.kkalscan.domain.port.CreateDiaryEntryResponse
 import ru.kkalscan.domain.port.CreateWorkoutResponse
 import ru.kkalscan.domain.port.DiaryDayResponse
@@ -15,11 +16,17 @@ import ru.kkalscan.domain.port.DiaryRepository
 import ru.kkalscan.domain.port.DiaryService
 import ru.kkalscan.domain.port.QuotaService
 import ru.kkalscan.domain.port.ScanSessionRepository
+import ru.kkalscan.domain.port.VisionBudgetRepository
+import ru.kkalscan.domain.port.VisionClient
 import ru.kkalscan.domain.port.WorkoutEntryDto
 import ru.kkalscan.domain.port.WorkoutRecord
 import ru.kkalscan.domain.port.WorkoutRepository
+import ru.kkalscan.AppConfig
+import ru.kkalscan.domain.VisionBudgetExceededException
+import ru.kkalscan.domain.VisionUnavailableException
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.util.UUID
 
 class DiaryServiceImpl(
@@ -27,6 +34,8 @@ class DiaryServiceImpl(
     private val workoutRepository: WorkoutRepository,
     private val quotaService: QuotaService,
     private val scanSessionRepository: ScanSessionRepository,
+    private val visionClient: VisionClient,
+    private val visionBudgetRepository: VisionBudgetRepository,
 ) : DiaryService {
 
     private val log = LoggerFactory.getLogger(DiaryServiceImpl::class.java)
@@ -145,6 +154,51 @@ class DiaryServiceImpl(
         return CreateWorkoutResponse(workout = saved.toDto())
     }
 
+    override suspend fun parseWorkoutDescription(actor: Actor, description: String): WorkoutParseResult {
+        val trimmed = description.trim()
+        if (trimmed.length < MIN_WORKOUT_DESCRIPTION_CHARS) {
+            throw BadRequestException("Опишите тренировку — минимум $MIN_WORKOUT_DESCRIPTION_CHARS символа")
+        }
+        if (trimmed.length > MAX_WORKOUT_DESCRIPTION_CHARS) {
+            throw BadRequestException("Описание слишком длинное — до $MAX_WORKOUT_DESCRIPTION_CHARS символов")
+        }
+
+        log.info(
+            "workout parse start device={} chars={} provider={}",
+            mask(actor.deviceId),
+            trimmed.length,
+            AppConfig.visionProvider,
+        )
+
+        val month = YearMonth.now()
+        if (visionBudgetRepository.getMonthCost(month) >= AppConfig.visionMonthlyBudgetRub) {
+            throw VisionBudgetExceededException()
+        }
+
+        val parsed = try {
+            visionClient.analyzeWorkout(trimmed)
+        } catch (e: Exception) {
+            log.warn("workout parse vision_failed device={}: {}", mask(actor.deviceId), e.message)
+            throw VisionUnavailableException(cause = e)
+        }
+
+        if (parsed.title.length < 2 || parsed.burnedKcal !in 1..10_000) {
+            log.warn("workout parse invalid device={} title={} kcal={}", mask(actor.deviceId), parsed.title, parsed.burnedKcal)
+            throw VisionUnavailableException("Не удалось понять описание. Уточните активность и длительность.")
+        }
+
+        visionBudgetRepository.addCost(month, AppConfig.visionCostPerRequestRub)
+
+        log.info(
+            "workout parse ok device={} title={} kcal={} min={}",
+            mask(actor.deviceId),
+            parsed.title,
+            parsed.burnedKcal,
+            parsed.durationMinutes,
+        )
+        return parsed
+    }
+
     override suspend fun deleteWorkout(actor: Actor, workoutId: UUID) {
         val workout = workoutRepository.findById(workoutId) ?: throw NotFoundException("Тренировка не найдена")
         if (!ownsWorkout(actor, workout)) throw ForbiddenException()
@@ -201,4 +255,9 @@ class DiaryServiceImpl(
     )
 
     private fun mask(deviceId: UUID): String = deviceId.toString().take(8) + "…"
+
+    companion object {
+        const val MIN_WORKOUT_DESCRIPTION_CHARS = 3
+        const val MAX_WORKOUT_DESCRIPTION_CHARS = 500
+    }
 }

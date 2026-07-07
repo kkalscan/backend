@@ -104,6 +104,8 @@ data class AppModule(
         workoutRepository,
         quotaService,
         repos.scanSessions,
+        visionClient,
+        repos.visionBudget,
     )
 
     val subscriptionService: SubscriptionService = SubscriptionServiceImpl(

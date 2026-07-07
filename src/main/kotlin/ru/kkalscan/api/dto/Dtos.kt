@@ -118,6 +118,19 @@ data class WorkoutRequest(
 )
 
 @Serializable
+data class WorkoutTextRequest(
+    val device_id: String,
+    val description: String,
+)
+
+@Serializable
+data class WorkoutParseResponse(
+    val title: String,
+    val burned_kcal: Int,
+    val duration_minutes: Int? = null,
+)
+
+@Serializable
 data class WorkoutResponse(
     val workout: WorkoutEntryJson,
 )
