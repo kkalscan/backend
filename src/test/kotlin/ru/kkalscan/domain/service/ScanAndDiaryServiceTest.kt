@@ -8,6 +8,7 @@ import ru.kkalscan.domain.model.MealType
 import ru.kkalscan.domain.port.DiaryService
 import ru.kkalscan.integrations.StubVisionClient
 import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -96,8 +97,9 @@ class ScanAndDiaryServiceTest {
 
     @Test
     fun `workout reduces net kcal in diary day`() = runTest {
-        val today = LocalDate.now()
-        val scan = scanService.analyzePhoto(actor, photo, today, 180)
+        val tzOffsetMinutes = 180
+        val today = LocalDate.now(ZoneOffset.ofTotalSeconds(tzOffsetMinutes * 60))
+        val scan = scanService.analyzePhoto(actor, photo, today, tzOffsetMinutes)
         diaryService.addEntry(
             actor,
             DiaryService.CreateDiaryEntryRequest(MealType.lunch, scanId = scan.scanId),
@@ -108,7 +110,7 @@ class ScanAndDiaryServiceTest {
             DiaryService.CreateWorkoutRequest(name = "Бег", kcal = 300),
             today,
         )
-        val day = diaryService.getDay(actor, today, 180)
+        val day = diaryService.getDay(actor, today, tzOffsetMinutes)
         assertEquals(100, day.totalKcal)
         assertEquals(300, day.totalBurnedKcal)
         assertEquals(-200, day.netKcal)
