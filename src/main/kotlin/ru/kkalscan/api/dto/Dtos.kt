@@ -8,6 +8,7 @@ import ru.kkalscan.domain.port.DiaryDayResponse
 import ru.kkalscan.domain.port.DiaryEntryDto
 import ru.kkalscan.domain.port.ScanService
 import ru.kkalscan.domain.port.SubscriptionService
+import ru.kkalscan.domain.port.WorkoutEntryDto
 import java.time.format.DateTimeFormatter
 
 @Serializable
@@ -82,11 +83,14 @@ data class DiaryEntryResponse(
 data class DiaryDayJson(
     val date: String,
     val total_kcal: Int,
+    val total_burned_kcal: Int = 0,
+    val net_kcal: Int = total_kcal,
     val scans_left: Int? = null,
     val is_pro: Boolean,
     val account_linked: Boolean,
     val linked_providers: List<String>,
     val entries: List<DiaryEntryJson>,
+    val workouts: List<WorkoutEntryJson> = emptyList(),
 )
 
 @Serializable
@@ -96,6 +100,26 @@ data class DiaryEntryJson(
     val meal_type: MealType,
     val total_kcal: Int,
     val dishes: List<DishDto>,
+)
+
+@Serializable
+data class WorkoutEntryJson(
+    val id: String,
+    val created_at: String,
+    val name: String,
+    val kcal: Int,
+)
+
+@Serializable
+data class WorkoutRequest(
+    val device_id: String,
+    val name: String,
+    val kcal: Int,
+)
+
+@Serializable
+data class WorkoutResponse(
+    val workout: WorkoutEntryJson,
 )
 
 @Serializable
@@ -221,11 +245,14 @@ fun ScanService.ScanResult.toResponse() = ScanResponse(
 fun DiaryDayResponse.toJson() = DiaryDayJson(
     date = date.toString(),
     total_kcal = totalKcal,
+    total_burned_kcal = totalBurnedKcal,
+    net_kcal = netKcal,
     scans_left = scansLeft,
     is_pro = isPro,
     account_linked = accountLinked,
     linked_providers = linkedProviders.map { it.name },
     entries = entries.map { it.toJson() },
+    workouts = workouts.map { it.toJson() },
 )
 
 fun DiaryEntryDto.toJson() = DiaryEntryJson(
@@ -234,6 +261,13 @@ fun DiaryEntryDto.toJson() = DiaryEntryJson(
     meal_type = mealType,
     total_kcal = totalKcal,
     dishes = dishes,
+)
+
+fun WorkoutEntryDto.toJson() = WorkoutEntryJson(
+    id = id.toString(),
+    created_at = instantFormatter.format(createdAt),
+    name = name,
+    kcal = kcal,
 )
 
 fun CreateDiaryEntryResponse.toJson() = DiaryEntryResponse(

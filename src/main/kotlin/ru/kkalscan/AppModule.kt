@@ -4,6 +4,7 @@ import ru.kkalscan.data.memory.InMemoryRepositories
 import ru.kkalscan.data.sqlite.SqliteBugReportRepository
 import ru.kkalscan.data.sqlite.SqliteFeatureSearchRepository
 import ru.kkalscan.data.sqlite.SqliteSearchLogRepository
+import ru.kkalscan.data.sqlite.SqliteWorkoutRepository
 import ru.kkalscan.domain.port.AuthService
 import ru.kkalscan.domain.port.BugReportMailer
 import ru.kkalscan.domain.port.BugReportRepository
@@ -18,7 +19,7 @@ import ru.kkalscan.domain.port.PaymentService
 import ru.kkalscan.domain.port.PlainTextMailer
 import ru.kkalscan.domain.port.QuotaService
 import ru.kkalscan.domain.port.ScanService
-import ru.kkalscan.domain.port.SubscriptionService
+import ru.kkalscan.domain.port.WorkoutRepository
 import ru.kkalscan.domain.service.AccountMergeServiceImpl
 import ru.kkalscan.domain.service.AuthServiceImpl
 import ru.kkalscan.domain.service.BugReportServiceImpl
@@ -59,6 +60,9 @@ data class AppModule(
     val featureSearchRepository: FeatureSearchRepository =
         dataSource?.let { SqliteFeatureSearchRepository(it) } ?: repos.featureSearch
 
+    val workoutRepository: WorkoutRepository =
+        dataSource?.let { SqliteWorkoutRepository(it) } ?: repos.workouts
+
     val foodSearchService: FoodSearchService = FoodSearchServiceImpl(searchLogRepository)
 
     val featureSearchService: FeatureSearchService =
@@ -96,6 +100,7 @@ data class AppModule(
 
     val diaryService: DiaryService = DiaryServiceImpl(
         repos.diary,
+        workoutRepository,
         quotaService,
         repos.scanSessions,
     )
@@ -109,6 +114,7 @@ data class AppModule(
         repos.devices,
         repos.users,
         repos.diary,
+        workoutRepository,
     )
 
     val authService: AuthService = AuthServiceImpl(

@@ -30,8 +30,8 @@ import ru.kkalscan.api.dto.ScanTextRequest
 import ru.kkalscan.api.dto.ScanResponse
 import ru.kkalscan.api.dto.SubscriptionStatusResponse
 import ru.kkalscan.api.dto.VkAuthRequest
-import ru.kkalscan.api.dto.WebhookAck
-import ru.kkalscan.api.dto.toJson
+import ru.kkalscan.api.dto.WorkoutRequest
+import ru.kkalscan.api.dto.WorkoutResponse
 import ru.kkalscan.api.dto.toResponse
 import ru.kkalscan.domain.BadRequestException
 import ru.kkalscan.domain.port.DiaryService
@@ -149,6 +149,26 @@ fun Application.configureRouting(module: AppModule) {
                 val entryId = parseUuid(call.parameters["id"] ?: throw BadRequestException("id обязателен"), "id")
                 val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
                 module.diaryService.deleteEntry(actor, entryId)
+                call.respond(HttpStatusCode.NoContent)
+            }
+
+            post("/diary/workouts") {
+                val body = call.receive<WorkoutRequest>()
+                val deviceId = parseUuid(body.device_id, "device_id")
+                val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
+                val response = module.diaryService.addWorkout(
+                    actor,
+                    DiaryService.CreateWorkoutRequest(name = body.name, kcal = body.kcal),
+                    LocalDate.now(),
+                )
+                call.respond(HttpStatusCode.Created, WorkoutResponse(response.workout.toJson()))
+            }
+
+            delete("/diary/workouts/{id}") {
+                val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
+                val workoutId = parseUuid(call.parameters["id"] ?: throw BadRequestException("id обязателен"), "id")
+                val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
+                module.diaryService.deleteWorkout(actor, workoutId)
                 call.respond(HttpStatusCode.NoContent)
             }
 

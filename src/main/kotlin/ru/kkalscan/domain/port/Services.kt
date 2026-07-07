@@ -71,10 +71,23 @@ interface DiaryService {
 
     suspend fun deleteEntry(actor: Actor, entryId: UUID)
 
+    suspend fun addWorkout(
+        actor: Actor,
+        request: CreateWorkoutRequest,
+        localDate: LocalDate,
+    ): CreateWorkoutResponse
+
+    suspend fun deleteWorkout(actor: Actor, workoutId: UUID)
+
     data class CreateDiaryEntryRequest(
         val mealType: MealType,
         val scanId: UUID? = null,
         val dishes: List<DishDto>? = null,
+    )
+
+    data class CreateWorkoutRequest(
+        val name: String,
+        val kcal: Int,
     )
 }
 
@@ -192,11 +205,14 @@ data class BugReportScreenshotRecord(
 data class DiaryDayResponse(
     val date: LocalDate,
     val totalKcal: Int,
+    val totalBurnedKcal: Int,
+    val netKcal: Int,
     val scansLeft: Int?,
     val isPro: Boolean,
     val accountLinked: Boolean,
     val linkedProviders: List<OAuthProvider>,
     val entries: List<DiaryEntryDto>,
+    val workouts: List<WorkoutEntryDto>,
 )
 
 data class DiaryEntryDto(
@@ -210,6 +226,17 @@ data class DiaryEntryDto(
 data class CreateDiaryEntryResponse(
     val entry: DiaryEntryDto,
     val scansLeft: Int?,
+)
+
+data class WorkoutEntryDto(
+    val id: UUID,
+    val createdAt: Instant,
+    val name: String,
+    val kcal: Int,
+)
+
+data class CreateWorkoutResponse(
+    val workout: WorkoutEntryDto,
 )
 
 data class AuthTokenResponse(
@@ -275,6 +302,20 @@ interface DiaryRepository {
     suspend fun deleteEntry(id: UUID)
 
     suspend fun findEntry(id: UUID): DiaryEntryRecord?
+}
+
+interface WorkoutRepository {
+    suspend fun findByDevice(deviceId: UUID, date: LocalDate, tzOffsetMin: Int): List<WorkoutRecord>
+
+    suspend fun findByUser(userId: UUID, date: LocalDate, tzOffsetMin: Int): List<WorkoutRecord>
+
+    suspend fun insert(workout: WorkoutRecord): WorkoutRecord
+
+    suspend fun delete(id: UUID)
+
+    suspend fun findById(id: UUID): WorkoutRecord?
+
+    suspend fun updateUserIdForDevice(deviceId: UUID, userId: UUID)
 }
 
 interface UserRepository {
@@ -373,6 +414,15 @@ data class DiaryEntryRecord(
     val totalKcal: Int,
     val createdAt: Instant,
     val dishes: List<DishDto>,
+)
+
+data class WorkoutRecord(
+    val id: UUID,
+    val deviceId: UUID,
+    val userId: UUID?,
+    val name: String,
+    val kcal: Int,
+    val createdAt: Instant,
 )
 
 data class UserRecord(

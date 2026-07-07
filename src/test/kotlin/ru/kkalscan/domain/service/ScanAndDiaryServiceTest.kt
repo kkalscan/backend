@@ -21,7 +21,7 @@ class ScanAndDiaryServiceTest {
         repos.scanSessions,
         repos.visionBudget,
     )
-    private val diaryService = DiaryServiceImpl(repos.diary, quotaService, repos.scanSessions)
+    private val diaryService = DiaryServiceImpl(repos.diary, repos.workouts, quotaService, repos.scanSessions)
     private val date = LocalDate.of(2026, 6, 14)
     private val actor = TestFixtures.guestActor()
     private val photo = ByteArray(1024) { 0xFF.toByte() }
@@ -92,5 +92,25 @@ class ScanAndDiaryServiceTest {
         assertFailsWith<LimitHitException> {
             scanService.analyzePhoto(actor, photo, date, 180)
         }
+    }
+
+    @Test
+    fun `workout reduces net kcal in diary day`() = runTest {
+        val scan = scanService.analyzePhoto(actor, photo, date, 180)
+        diaryService.addEntry(
+            actor,
+            DiaryService.CreateDiaryEntryRequest(MealType.lunch, scanId = scan.scanId),
+            date,
+        )
+        diaryService.addWorkout(
+            actor,
+            DiaryService.CreateWorkoutRequest(name = "Бег", kcal = 300),
+            date,
+        )
+        val day = diaryService.getDay(actor, date, 180)
+        assertEquals(100, day.totalKcal)
+        assertEquals(300, day.totalBurnedKcal)
+        assertEquals(-200, day.netKcal)
+        assertEquals(1, day.workouts.size)
     }
 }

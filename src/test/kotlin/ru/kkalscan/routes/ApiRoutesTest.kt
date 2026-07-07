@@ -190,6 +190,82 @@ class ApiRoutesTest {
     }
 
     @Test
+    fun `workout create updates diary balance`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+        val today = LocalDate.now().toString()
+
+        client.post("/api/v1/diary/entries") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "meal_type": "lunch",
+                  "dishes": [
+                    {"name": "Суп", "grams": 300, "kcal": 400, "protein": 10.0, "fat": 5.0, "carbs": 40.0}
+                  ]
+                }
+                """.trimIndent(),
+            )
+        }
+
+        val createWorkout = client.post("/api/v1/diary/workouts") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "name": "Бег",
+                  "kcal": 150
+                }
+                """.trimIndent(),
+            )
+        }
+        assertEquals(HttpStatusCode.Created, createWorkout.status)
+        val workoutBody = json.parseToJsonElement(createWorkout.bodyAsText()).jsonObject
+        val workoutId = workoutBody["workout"]!!.jsonObject["id"]!!.jsonPrimitive.content
+        assertEquals("Бег", workoutBody["workout"]!!.jsonObject["name"]!!.jsonPrimitive.content)
+
+        val day = client.get("/api/v1/diary?device_id=$deviceId&date=$today&timezone_offset_minutes=180")
+        assertEquals(HttpStatusCode.OK, day.status)
+        val dayBody = json.parseToJsonElement(day.bodyAsText()).jsonObject
+        assertEquals(400, dayBody["total_kcal"]!!.jsonPrimitive.int)
+        assertEquals(150, dayBody["total_burned_kcal"]!!.jsonPrimitive.int)
+        assertEquals(250, dayBody["net_kcal"]!!.jsonPrimitive.int)
+        assertEquals(1, dayBody["workouts"]!!.jsonArray.size)
+
+        val deleteWorkout = client.delete("/api/v1/diary/workouts/$workoutId") {
+            header("X-Device-Id", deviceId)
+        }
+        assertEquals(HttpStatusCode.NoContent, deleteWorkout.status)
+
+        val dayAfterDelete = client.get("/api/v1/diary?device_id=$deviceId&date=$today&timezone_offset_minutes=180")
+        val afterBody = json.parseToJsonElement(dayAfterDelete.bodyAsText()).jsonObject
+        assertEquals(0, afterBody["total_burned_kcal"]!!.jsonPrimitive.int)
+        assertEquals(400, afterBody["net_kcal"]!!.jsonPrimitive.int)
+        assertEquals(0, afterBody["workouts"]!!.jsonArray.size)
+    }
+
+    @Test
+    fun `workout validation rejects short name`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+
+        val response = client.post("/api/v1/diary/workouts") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "name": "Б",
+                  "kcal": 100
+                }
+                """.trimIndent(),
+            )
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
     fun `scan bonus returns extra scans`() = testApplication {
         application { testModule(TestFixtures.freshModule()) }
         val response = client.post("/api/v1/scan/bonus") {

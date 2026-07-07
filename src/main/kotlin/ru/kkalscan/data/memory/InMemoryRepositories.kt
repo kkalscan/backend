@@ -25,6 +25,8 @@ import ru.kkalscan.domain.port.ScanSessionRepository
 import ru.kkalscan.domain.port.UserRecord
 import ru.kkalscan.domain.port.UserRepository
 import ru.kkalscan.domain.port.VisionBudgetRepository
+import ru.kkalscan.domain.port.WorkoutRecord
+import ru.kkalscan.domain.port.WorkoutRepository
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -125,6 +127,39 @@ class InMemoryDiaryRepository : DiaryRepository {
     suspend fun updateUserIdForDevice(deviceId: UUID, userId: UUID) {
         entries.values.filter { it.deviceId == deviceId }.forEach { entry ->
             entries[entry.id] = entry.copy(userId = userId)
+        }
+    }
+}
+
+class InMemoryWorkoutRepository : WorkoutRepository {
+    private val workouts = ConcurrentHashMap<UUID, WorkoutRecord>()
+
+    override suspend fun findByDevice(deviceId: UUID, date: LocalDate, tzOffsetMin: Int): List<WorkoutRecord> =
+        filterByDate(workouts.values.filter { it.deviceId == deviceId }, date, tzOffsetMin)
+
+    override suspend fun findByUser(userId: UUID, date: LocalDate, tzOffsetMin: Int): List<WorkoutRecord> =
+        filterByDate(workouts.values.filter { it.userId == userId }, date, tzOffsetMin)
+
+    private fun filterByDate(list: List<WorkoutRecord>, date: LocalDate, tzOffsetMin: Int): List<WorkoutRecord> {
+        val offset = ZoneOffset.ofTotalSeconds(tzOffsetMin * 60)
+        return list.filter { it.createdAt.atOffset(offset).toLocalDate() == date }
+            .sortedBy { it.createdAt }
+    }
+
+    override suspend fun insert(workout: WorkoutRecord): WorkoutRecord {
+        workouts[workout.id] = workout
+        return workout
+    }
+
+    override suspend fun delete(id: UUID) {
+        workouts.remove(id)
+    }
+
+    override suspend fun findById(id: UUID): WorkoutRecord? = workouts[id]
+
+    override suspend fun updateUserIdForDevice(deviceId: UUID, userId: UUID) {
+        workouts.values.filter { it.deviceId == deviceId }.forEach { workout ->
+            workouts[workout.id] = workout.copy(userId = userId)
         }
     }
 }
@@ -264,6 +299,7 @@ data class InMemoryRepositories(
     val quotas: InMemoryScanQuotaRepository = InMemoryScanQuotaRepository(),
     val scanSessions: InMemoryScanSessionRepository = InMemoryScanSessionRepository(),
     val diary: InMemoryDiaryRepository = InMemoryDiaryRepository(),
+    val workouts: InMemoryWorkoutRepository = InMemoryWorkoutRepository(),
     val users: InMemoryUserRepository = InMemoryUserRepository(),
     val oauth: InMemoryOAuthRepository = InMemoryOAuthRepository(),
     val payments: InMemoryPaymentRepository = InMemoryPaymentRepository(),

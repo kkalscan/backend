@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 class AuthServiceTest {
     private val repos = InMemoryRepositories()
     private val subscriptionService = SubscriptionServiceImpl(repos.devices, repos.users)
-    private val mergeService = AccountMergeServiceImpl(repos.devices, repos.users, repos.diary)
+    private val mergeService = AccountMergeServiceImpl(repos.devices, repos.users, repos.diary, repos.workouts)
     private val service = AuthServiceImpl(
         StubVkAuthClient(),
         repos.oauth,
