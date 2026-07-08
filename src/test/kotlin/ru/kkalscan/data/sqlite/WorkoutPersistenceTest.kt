@@ -14,6 +14,7 @@ import ru.kkalscan.domain.port.DiaryService
 import ru.kkalscan.domain.port.WorkoutRecord
 import ru.kkalscan.domain.service.DiaryServiceImpl
 import ru.kkalscan.domain.service.QuotaServiceImpl
+import ru.kkalscan.integrations.StubVisionClient
 import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDate
@@ -55,6 +56,8 @@ class WorkoutPersistenceTest {
             workoutRepo,
             quotaService,
             repos.scanSessions,
+            StubVisionClient(),
+            repos.visionBudget,
         )
         val actor = TestFixtures.guestActor()
         val today = LocalDate.of(2026, 7, 7)
@@ -88,6 +91,8 @@ class WorkoutPersistenceTest {
             restartedWorkoutRepo,
             quotaService,
             repos.scanSessions,
+            StubVisionClient(),
+            repos.visionBudget,
         ).getDay(actor, today, timezoneOffsetMinutes = 180)
 
         assertEquals(400, day.totalKcal)
