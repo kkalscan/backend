@@ -18,6 +18,7 @@ import ru.kkalscan.integrations.StubVisionClient
 import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 import javax.sql.DataSource
 import kotlin.test.Test
@@ -60,7 +61,8 @@ class WorkoutPersistenceTest {
             repos.visionBudget,
         )
         val actor = TestFixtures.guestActor()
-        val today = LocalDate.of(2026, 7, 7)
+        val tzOffsetMin = 180
+        val today = Instant.now().atOffset(ZoneOffset.ofTotalSeconds(tzOffsetMin * 60)).toLocalDate()
 
         diaryService.addEntry(
             actor,
@@ -93,7 +95,7 @@ class WorkoutPersistenceTest {
             repos.scanSessions,
             StubVisionClient(),
             repos.visionBudget,
-        ).getDay(actor, today, timezoneOffsetMinutes = 180)
+        ).getDay(actor, today, timezoneOffsetMinutes = tzOffsetMin)
 
         assertEquals(400, day.totalKcal)
         assertEquals(150, day.totalBurnedKcal)
