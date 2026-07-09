@@ -106,6 +106,24 @@ class InMemoryDiaryRepository : DiaryRepository {
     override suspend fun findEntriesByUser(userId: UUID, date: LocalDate, tzOffsetMin: Int): List<DiaryEntryRecord> =
         filterByDate(entries.values.filter { it.userId == userId }, date, tzOffsetMin)
 
+    override suspend fun consumedKcalByDay(
+        deviceId: UUID,
+        from: LocalDate,
+        to: LocalDate,
+        tzOffsetMin: Int,
+    ): Map<LocalDate, Int> {
+        val offset = ZoneOffset.ofTotalSeconds(tzOffsetMin * 60)
+        return entries.values
+            .asSequence()
+            .filter { it.deviceId == deviceId }
+            .map { entry ->
+                entry.createdAt.atOffset(offset).toLocalDate() to entry.totalKcal
+            }
+            .filter { (date, _) -> !date.isBefore(from) && !date.isAfter(to) }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, kcals) -> kcals.sum() }
+    }
+
     private fun filterByDate(list: List<DiaryEntryRecord>, date: LocalDate, tzOffsetMin: Int): List<DiaryEntryRecord> {
         val offset = ZoneOffset.ofTotalSeconds(tzOffsetMin * 60)
         return list.filter { it.createdAt.atOffset(offset).toLocalDate() == date }

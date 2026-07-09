@@ -8,8 +8,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import ru.kkalscan.AppConfig
 import ru.kkalscan.AppModule
-import ru.kkalscan.api.dto.AuthTokenJson
 import ru.kkalscan.api.dto.HealthResponse
+import ru.kkalscan.api.dto.AuthTokenJson
 import ru.kkalscan.api.dto.FeatureSearchItemJson
 import ru.kkalscan.api.dto.FeatureSearchResponse
 import ru.kkalscan.api.dto.FoodSearchResponse
@@ -133,6 +133,15 @@ fun Application.configureRouting(module: AppModule) {
                 val tz = call.request.queryParameters["timezone_offset_minutes"]?.toIntOrNull() ?: 180
                 val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
                 call.respond(module.diaryService.getDay(actor, date, tz).toJson())
+            }
+
+            get("/activity/emulator") {
+                val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
+                val tz = call.request.queryParameters["timezone_offset_minutes"]?.toIntOrNull() ?: 180
+                val today = LocalDate.now()
+                call.respond(
+                    module.activityEmulatorService.getEmulator(deviceId, today, tz).toJson(),
+                )
             }
 
             post("/diary/entries") {

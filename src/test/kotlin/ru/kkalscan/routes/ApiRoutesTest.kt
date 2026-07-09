@@ -132,6 +132,42 @@ class ApiRoutesTest {
     }
 
     @Test
+    fun `activity emulator population default`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+        val response = client.get("/api/v1/activity/emulator?device_id=$deviceId&timezone_offset_minutes=180")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals("population_default", body["mode"]!!.jsonPrimitive.content)
+        assertEquals(400, body["estimated_active_kcal"]!!.jsonPrimitive.int)
+        assertEquals(10000, body["estimated_steps"]!!.jsonPrimitive.int)
+    }
+
+    @Test
+    fun `activity emulator diary based after entries`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+        client.post("/api/v1/diary/entries") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "meal_type": "lunch",
+                  "dishes": [
+                    {"name": "Обед", "grams": 300, "kcal": 2000, "protein": 20.0, "fat": 10.0, "carbs": 30.0, "fiber": 5.0}
+                  ]
+                }
+                """.trimIndent(),
+            )
+        }
+        val response = client.get("/api/v1/activity/emulator?device_id=$deviceId&timezone_offset_minutes=180")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals("diary_based", body["mode"]!!.jsonPrimitive.content)
+        assertEquals(2000, body["avg_consumed_kcal_per_day"]!!.jsonPrimitive.int)
+        assertEquals(500, body["estimated_active_kcal"]!!.jsonPrimitive.int)
+    }
+
+    @Test
     fun `diary entry with dishes`() = testApplication {
         application { testModule(TestFixtures.freshModule()) }
 

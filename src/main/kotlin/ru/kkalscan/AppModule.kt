@@ -5,6 +5,7 @@ import ru.kkalscan.data.sqlite.SqliteBugReportRepository
 import ru.kkalscan.data.sqlite.SqliteFeatureSearchRepository
 import ru.kkalscan.data.sqlite.SqliteSearchLogRepository
 import ru.kkalscan.data.sqlite.SqliteWorkoutRepository
+import ru.kkalscan.domain.port.ActivityEmulatorService
 import ru.kkalscan.domain.port.AuthService
 import ru.kkalscan.domain.port.BugReportMailer
 import ru.kkalscan.domain.port.BugReportRepository
@@ -21,6 +22,7 @@ import ru.kkalscan.domain.port.QuotaService
 import ru.kkalscan.domain.port.ScanService
 import ru.kkalscan.domain.port.SubscriptionService
 import ru.kkalscan.domain.port.WorkoutRepository
+import ru.kkalscan.domain.service.ActivityEmulatorServiceImpl
 import ru.kkalscan.domain.service.AccountMergeServiceImpl
 import ru.kkalscan.domain.service.AuthServiceImpl
 import ru.kkalscan.domain.service.BugReportServiceImpl
@@ -107,6 +109,9 @@ data class AppModule(
         visionClient,
         repos.visionBudget,
     )
+
+    val activityEmulatorService: ActivityEmulatorService =
+        ActivityEmulatorServiceImpl(repos.diary)
 
     val subscriptionService: SubscriptionService = SubscriptionServiceImpl(
         repos.devices,

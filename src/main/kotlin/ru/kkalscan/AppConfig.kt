@@ -67,6 +67,11 @@ object AppConfig {
      */
     val freeProActivationEnabled: Boolean =
         System.getenv("FREE_PRO_ACTIVATION")?.toBooleanStrictOrNull() ?: true
+
+    const val ACTIVITY_EMULATOR_DEFAULT_ACTIVE_KCAL = 400
+    const val ACTIVITY_EMULATOR_BMR_DEFAULT = 1500
+    const val ACTIVITY_EMULATOR_KCAL_PER_STEP = 0.04
+    const val ACTIVITY_EMULATOR_LOOKBACK_DAYS = 30
 }
 
 internal fun normalizeOpenRouterModel(model: String): String =

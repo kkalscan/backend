@@ -122,6 +122,28 @@ interface AccountMergeService {
     suspend fun mergeDeviceToUser(deviceId: UUID, userId: UUID)
 }
 
+enum class ActivityEmulatorMode {
+    population_default,
+    diary_based,
+}
+
+data class ActivityEmulatorResponse(
+    val mode: ActivityEmulatorMode,
+    val estimatedActiveKcal: Int,
+    val estimatedSteps: Int,
+    val avgConsumedKcalPerDay: Int?,
+    val diaryDaysWithEntries: Int,
+    val lookbackDays: Int,
+)
+
+interface ActivityEmulatorService {
+    suspend fun getEmulator(
+        deviceId: UUID,
+        today: LocalDate,
+        timezoneOffsetMinutes: Int,
+    ): ActivityEmulatorResponse
+}
+
 interface PaymentService {
     suspend fun createTochkaPayment(deviceId: UUID, tariff: String = "pro_monthly_199"): PaymentCreateResponse
 
@@ -299,6 +321,13 @@ interface DiaryRepository {
     suspend fun findEntriesByDevice(deviceId: UUID, date: LocalDate, tzOffsetMin: Int): List<DiaryEntryRecord>
 
     suspend fun findEntriesByUser(userId: UUID, date: LocalDate, tzOffsetMin: Int): List<DiaryEntryRecord>
+
+    suspend fun consumedKcalByDay(
+        deviceId: UUID,
+        from: LocalDate,
+        to: LocalDate,
+        tzOffsetMin: Int,
+    ): Map<LocalDate, Int>
 
     suspend fun insertEntry(entry: DiaryEntryRecord, dishes: List<DishDto>): DiaryEntryRecord
 

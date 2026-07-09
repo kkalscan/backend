@@ -3,6 +3,7 @@ package ru.kkalscan.api.dto
 import kotlinx.serialization.Serializable
 import ru.kkalscan.domain.model.DishDto
 import ru.kkalscan.domain.model.MealType
+import ru.kkalscan.domain.port.ActivityEmulatorResponse
 import ru.kkalscan.domain.port.CreateDiaryEntryResponse
 import ru.kkalscan.domain.port.DiaryDayResponse
 import ru.kkalscan.domain.port.DiaryEntryDto
@@ -71,6 +72,16 @@ data class DiaryEntryRequest(
     val meal_type: MealType,
     val scan_id: String? = null,
     val dishes: List<DishDto>? = null,
+)
+
+@Serializable
+data class ActivityEmulatorJson(
+    val mode: String,
+    val estimated_active_kcal: Int,
+    val estimated_steps: Int,
+    val avg_consumed_kcal_per_day: Int? = null,
+    val diary_days_with_entries: Int,
+    val lookback_days: Int,
 )
 
 @Serializable
@@ -294,4 +305,13 @@ fun SubscriptionService.SubscriptionStatus.toJson() = SubscriptionStatusResponse
     account_linked = accountLinked,
     linked_providers = linkedProviders.map { it.name },
     tariff = tariff,
+)
+
+fun ActivityEmulatorResponse.toJson() = ActivityEmulatorJson(
+    mode = mode.name,
+    estimated_active_kcal = estimatedActiveKcal,
+    estimated_steps = estimatedSteps,
+    avg_consumed_kcal_per_day = avgConsumedKcalPerDay,
+    diary_days_with_entries = diaryDaysWithEntries,
+    lookback_days = lookbackDays,
 )

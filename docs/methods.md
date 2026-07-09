@@ -31,6 +31,7 @@ HTTP Request
 | 2 | `POST /api/v1/scan` | `ScanRoutes.postScan` | `ScanService.analyzePhoto` |
 | 3 | `POST /api/v1/scan/bonus` | `ScanRoutes.postBonus` | `QuotaService.grantAdBonus` |
 | 4 | `GET /api/v1/diary` | `DiaryRoutes.getDiary` | `DiaryService.getDay` |
+| 4b | `GET /api/v1/activity/emulator` | `ApiRoutes` | `ActivityEmulatorService.getEmulator` |
 | 5 | `POST /api/v1/diary/entries` | `DiaryRoutes.postEntry` | `DiaryService.addEntry` |
 | 6 | `DELETE /api/v1/diary/entries/{id}` | `DiaryRoutes.deleteEntry` | `DiaryService.deleteEntry` |
 | 7 | `GET /api/v1/subscription/status` | `SubscriptionRoutes.getStatus` | `SubscriptionService.getStatus` |
