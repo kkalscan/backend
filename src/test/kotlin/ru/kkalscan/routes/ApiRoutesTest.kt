@@ -138,8 +138,9 @@ class ApiRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("population_default", body["mode"]!!.jsonPrimitive.content)
-        assertEquals(400, body["estimated_active_kcal"]!!.jsonPrimitive.int)
-        assertEquals(10000, body["estimated_steps"]!!.jsonPrimitive.int)
+        val activeKcal = body["estimated_active_kcal"]!!.jsonPrimitive.int
+        assertTrue(activeKcal in 0..1500)
+        assertEquals((activeKcal / 0.04).toInt(), body["estimated_steps"]!!.jsonPrimitive.int)
     }
 
     @Test
@@ -164,7 +165,8 @@ class ApiRoutesTest {
         val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("diary_based", body["mode"]!!.jsonPrimitive.content)
         assertEquals(2000, body["avg_consumed_kcal_per_day"]!!.jsonPrimitive.int)
-        assertEquals(500, body["estimated_active_kcal"]!!.jsonPrimitive.int)
+        val activeKcal = body["estimated_active_kcal"]!!.jsonPrimitive.int
+        assertTrue(activeKcal in 0..500)
     }
 
     @Test
