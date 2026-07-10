@@ -31,11 +31,13 @@ import ru.kkalscan.api.dto.ScanResponse
 import ru.kkalscan.api.dto.SubscriptionStatusResponse
 import ru.kkalscan.api.dto.VkAuthRequest
 import ru.kkalscan.api.dto.WebhookAck
+import ru.kkalscan.api.dto.ActivitySyncRequest
 import ru.kkalscan.api.dto.WorkoutRequest
 import ru.kkalscan.api.dto.WorkoutResponse
 import ru.kkalscan.api.dto.WorkoutTextRequest
 import ru.kkalscan.api.dto.WorkoutParseResponse
 import ru.kkalscan.api.dto.toJson
+import ru.kkalscan.api.dto.parseActivitySource
 import ru.kkalscan.api.dto.toResponse
 import ru.kkalscan.domain.BadRequestException
 import ru.kkalscan.domain.port.DiaryService
@@ -190,6 +192,23 @@ fun Application.configureRouting(module: AppModule) {
                     LocalDate.now(),
                 )
                 call.respond(HttpStatusCode.Created, WorkoutResponse(response.workout.toJson()))
+            }
+
+            put("/diary/activity") {
+                val body = call.receive<ActivitySyncRequest>()
+                val deviceId = parseUuid(body.device_id, "device_id")
+                val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
+                val day = module.diaryService.syncActivity(
+                    actor,
+                    DiaryService.SyncActivityRequest(
+                        steps = body.steps,
+                        kcal = body.kcal,
+                        source = parseActivitySource(body.source),
+                    ),
+                    LocalDate.now(),
+                    body.timezone_offset_minutes,
+                )
+                call.respond(HttpStatusCode.OK, day.toJson())
             }
 
             delete("/diary/workouts/{id}") {

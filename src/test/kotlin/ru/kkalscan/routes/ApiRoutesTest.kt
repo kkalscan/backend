@@ -144,18 +144,30 @@ class ApiRoutesTest {
     }
 
     @Test
-    fun `activity emulator diary based after entries`() = testApplication {
+    fun `activity emulator diary based after burn history`() = testApplication {
         application { testModule(TestFixtures.freshModule()) }
-        client.post("/api/v1/diary/entries") {
+        client.post("/api/v1/diary/workouts") {
             contentType(ContentType.Application.Json)
             setBody(
                 """
                 {
                   "device_id": "$deviceId",
-                  "meal_type": "lunch",
-                  "dishes": [
-                    {"name": "Обед", "grams": 300, "kcal": 2000, "protein": 20.0, "fat": 10.0, "carbs": 30.0, "fiber": 5.0}
-                  ]
+                  "name": "Бег",
+                  "kcal": 500
+                }
+                """.trimIndent(),
+            )
+        }
+        client.put("/api/v1/diary/activity") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "steps": 10000,
+                  "kcal": 400,
+                  "source": "device_sensor",
+                  "timezone_offset_minutes": 180
                 }
                 """.trimIndent(),
             )
@@ -164,9 +176,9 @@ class ApiRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         val body = json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("diary_based", body["mode"]!!.jsonPrimitive.content)
-        assertEquals(2000, body["avg_consumed_kcal_per_day"]!!.jsonPrimitive.int)
+        assertEquals(900, body["avg_consumed_kcal_per_day"]!!.jsonPrimitive.int)
         val activeKcal = body["estimated_active_kcal"]!!.jsonPrimitive.int
-        assertTrue(activeKcal in 0..500)
+        assertTrue(activeKcal in 0..900)
     }
 
     @Test
@@ -304,6 +316,51 @@ class ApiRoutesTest {
         assertEquals(0, afterBody["total_burned_kcal"]!!.jsonPrimitive.int)
         assertEquals(400, afterBody["net_kcal"]!!.jsonPrimitive.int)
         assertEquals(0, afterBody["workouts"]!!.jsonArray.size)
+    }
+
+    @Test
+    fun `activity sync persists steps and sums with workouts`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+        val deviceId = TestFixtures.deviceId.toString()
+        val today = java.time.LocalDate.now().toString()
+
+        client.post("/api/v1/diary/workouts") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "name": "Бег",
+                  "kcal": 120
+                }
+                """.trimIndent(),
+            )
+        }
+
+        val sync = client.put("/api/v1/diary/activity") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                """
+                {
+                  "device_id": "$deviceId",
+                  "steps": 5600,
+                  "kcal": 224,
+                  "source": "device_sensor",
+                  "timezone_offset_minutes": 180
+                }
+                """.trimIndent(),
+            )
+        }
+        assertEquals(HttpStatusCode.OK, sync.status)
+        val body = json.parseToJsonElement(sync.bodyAsText()).jsonObject
+        assertEquals(224, body["activity_kcal"]!!.jsonPrimitive.int)
+        assertEquals(5600, body["activity_steps"]!!.jsonPrimitive.int)
+        assertEquals(344, body["total_burned_kcal"]!!.jsonPrimitive.int)
+        assertEquals("device_sensor", body["activity_source"]!!.jsonPrimitive.content)
+
+        val day = client.get("/api/v1/diary?device_id=$deviceId&date=$today&timezone_offset_minutes=180")
+        val dayBody = json.parseToJsonElement(day.bodyAsText()).jsonObject
+        assertEquals(344, dayBody["total_burned_kcal"]!!.jsonPrimitive.int)
     }
 
     @Test

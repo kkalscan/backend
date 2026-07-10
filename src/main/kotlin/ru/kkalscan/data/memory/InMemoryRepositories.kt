@@ -11,6 +11,8 @@ import ru.kkalscan.domain.port.FeatureSearchRepository
 import ru.kkalscan.domain.port.SearchLogRecord
 import ru.kkalscan.domain.port.SearchLogRepository
 import ru.kkalscan.domain.port.SearchQueryStat
+import ru.kkalscan.domain.port.DailyActivityRecord
+import ru.kkalscan.domain.port.DailyActivityRepository
 import ru.kkalscan.domain.port.DeviceRecord
 import ru.kkalscan.domain.port.DeviceRepository
 import ru.kkalscan.domain.port.DiaryEntryRecord
@@ -182,6 +184,31 @@ class InMemoryWorkoutRepository : WorkoutRepository {
     }
 }
 
+class InMemoryDailyActivityRepository : DailyActivityRepository {
+    private data class Key(val deviceId: UUID, val localDate: LocalDate)
+
+    private val activities = ConcurrentHashMap<Key, DailyActivityRecord>()
+
+    override suspend fun findByDevice(deviceId: UUID, date: LocalDate): DailyActivityRecord? =
+        activities[Key(deviceId, date)]
+
+    override suspend fun findByUser(userId: UUID, date: LocalDate): DailyActivityRecord? =
+        activities.values
+            .filter { it.userId == userId && it.localDate == date }
+            .maxByOrNull { it.updatedAt }
+
+    override suspend fun upsert(record: DailyActivityRecord): DailyActivityRecord {
+        activities[Key(record.deviceId, record.localDate)] = record
+        return record
+    }
+
+    override suspend fun updateUserIdForDevice(deviceId: UUID, userId: UUID) {
+        activities.entries.filter { it.key.deviceId == deviceId }.forEach { (key, record) ->
+            activities[key] = record.copy(userId = userId)
+        }
+    }
+}
+
 class InMemoryUserRepository : UserRepository {
     private val users = ConcurrentHashMap<UUID, UserRecord>()
 
@@ -318,6 +345,7 @@ data class InMemoryRepositories(
     val scanSessions: InMemoryScanSessionRepository = InMemoryScanSessionRepository(),
     val diary: InMemoryDiaryRepository = InMemoryDiaryRepository(),
     val workouts: InMemoryWorkoutRepository = InMemoryWorkoutRepository(),
+    val dailyActivity: InMemoryDailyActivityRepository = InMemoryDailyActivityRepository(),
     val users: InMemoryUserRepository = InMemoryUserRepository(),
     val oauth: InMemoryOAuthRepository = InMemoryOAuthRepository(),
     val payments: InMemoryPaymentRepository = InMemoryPaymentRepository(),

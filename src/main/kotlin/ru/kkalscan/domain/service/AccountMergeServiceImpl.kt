@@ -2,6 +2,7 @@ package ru.kkalscan.domain.service
 
 import ru.kkalscan.data.memory.InMemoryDiaryRepository
 import ru.kkalscan.domain.port.AccountMergeService
+import ru.kkalscan.domain.port.DailyActivityRepository
 import ru.kkalscan.domain.port.DeviceRepository
 import ru.kkalscan.domain.port.DiaryRepository
 import ru.kkalscan.domain.port.UserRepository
@@ -14,6 +15,7 @@ class AccountMergeServiceImpl(
     private val userRepository: UserRepository,
     private val diaryRepository: DiaryRepository,
     private val workoutRepository: WorkoutRepository,
+    private val dailyActivityRepository: DailyActivityRepository,
 ) : AccountMergeService {
 
     override suspend fun mergeDeviceToUser(deviceId: UUID, userId: UUID) {
@@ -35,6 +37,7 @@ class AccountMergeServiceImpl(
             diaryRepository.updateUserIdForDevice(deviceId, userId)
         }
         workoutRepository.updateUserIdForDevice(deviceId, userId)
+        dailyActivityRepository.updateUserIdForDevice(deviceId, userId)
     }
 
     private fun maxInstant(a: Instant?, b: Instant?): Instant? =

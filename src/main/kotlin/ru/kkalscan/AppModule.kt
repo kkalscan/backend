@@ -4,12 +4,14 @@ import ru.kkalscan.data.memory.InMemoryRepositories
 import ru.kkalscan.data.sqlite.SqliteBugReportRepository
 import ru.kkalscan.data.sqlite.SqliteFeatureSearchRepository
 import ru.kkalscan.data.sqlite.SqliteSearchLogRepository
+import ru.kkalscan.data.sqlite.SqliteDailyActivityRepository
 import ru.kkalscan.data.sqlite.SqliteWorkoutRepository
 import ru.kkalscan.domain.port.ActivityEmulatorService
 import ru.kkalscan.domain.port.AuthService
 import ru.kkalscan.domain.port.BugReportMailer
 import ru.kkalscan.domain.port.BugReportRepository
 import ru.kkalscan.domain.port.BugReportService
+import ru.kkalscan.domain.port.DailyActivityRepository
 import ru.kkalscan.domain.port.DiaryService
 import ru.kkalscan.domain.port.FeatureSearchRepository
 import ru.kkalscan.domain.port.FeatureSearchService
@@ -66,6 +68,9 @@ data class AppModule(
     val workoutRepository: WorkoutRepository =
         dataSource?.let { SqliteWorkoutRepository(it) } ?: repos.workouts
 
+    val dailyActivityRepository: DailyActivityRepository =
+        dataSource?.let { SqliteDailyActivityRepository(it) } ?: repos.dailyActivity
+
     val foodSearchService: FoodSearchService = FoodSearchServiceImpl(searchLogRepository)
 
     val featureSearchService: FeatureSearchService =
@@ -104,6 +109,7 @@ data class AppModule(
     val diaryService: DiaryService = DiaryServiceImpl(
         repos.diary,
         workoutRepository,
+        dailyActivityRepository,
         quotaService,
         repos.scanSessions,
         visionClient,
@@ -111,7 +117,7 @@ data class AppModule(
     )
 
     val activityEmulatorService: ActivityEmulatorService =
-        ActivityEmulatorServiceImpl(repos.diary)
+        ActivityEmulatorServiceImpl(workoutRepository, dailyActivityRepository)
 
     val subscriptionService: SubscriptionService = SubscriptionServiceImpl(
         repos.devices,
@@ -123,6 +129,7 @@ data class AppModule(
         repos.users,
         repos.diary,
         workoutRepository,
+        dailyActivityRepository,
     )
 
     val authService: AuthService = AuthServiceImpl(

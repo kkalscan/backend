@@ -9,8 +9,11 @@ import ru.kkalscan.domain.model.DishDto
 import ru.kkalscan.domain.model.WorkoutParseResult
 import ru.kkalscan.domain.port.CreateDiaryEntryResponse
 import ru.kkalscan.domain.port.CreateWorkoutResponse
+import ru.kkalscan.domain.port.DailyActivityRecord
+import ru.kkalscan.domain.port.DailyActivityRepository
 import ru.kkalscan.domain.port.DiaryDayResponse
 import ru.kkalscan.domain.port.DiaryEntryDto
+import ru.kkalscan.domain.port.ActivitySourceKind
 import ru.kkalscan.domain.port.DiaryEntryRecord
 import ru.kkalscan.domain.port.DiaryRepository
 import ru.kkalscan.domain.port.DiaryService
@@ -32,6 +35,7 @@ import java.util.UUID
 class DiaryServiceImpl(
     private val diaryRepository: DiaryRepository,
     private val workoutRepository: WorkoutRepository,
+    private val dailyActivityRepository: DailyActivityRepository,
     private val quotaService: QuotaService,
     private val scanSessionRepository: ScanSessionRepository,
     private val visionClient: VisionClient,
@@ -47,14 +51,18 @@ class DiaryServiceImpl(
     ): DiaryDayResponse {
         val entries = loadEntries(actor, date, timezoneOffsetMinutes)
         val workouts = loadWorkouts(actor, date, timezoneOffsetMinutes)
+        val activity = loadActivity(actor, date)
         val consumed = entries.sumOf { it.totalKcal }
-        val burned = workouts.sumOf { it.kcal }
+        val workoutBurned = workouts.sumOf { it.kcal }
+        val activityBurned = activity?.kcal ?: 0
+        val burned = workoutBurned + activityBurned
         log.debug(
-            "diary get device={} date={} entries={} workouts={} kcal={} burned={}",
+            "diary get device={} date={} entries={} workouts={} activity={} kcal={} burned={}",
             mask(actor.deviceId),
             date,
             entries.size,
             workouts.size,
+            activityBurned,
             consumed,
             burned,
         )
@@ -63,6 +71,9 @@ class DiaryServiceImpl(
             totalKcal = consumed,
             totalBurnedKcal = burned,
             netKcal = consumed - burned,
+            activityKcal = activityBurned,
+            activitySteps = activity?.steps?.takeIf { it > 0 },
+            activitySource = activity?.source ?: ActivitySourceKind.None,
             scansLeft = quotaService.getScansLeft(actor, date),
             isPro = actor.isPro,
             accountLinked = actor.accountLinked,
@@ -205,6 +216,46 @@ class DiaryServiceImpl(
         workoutRepository.delete(workoutId)
     }
 
+    override suspend fun syncActivity(
+        actor: Actor,
+        request: DiaryService.SyncActivityRequest,
+        localDate: LocalDate,
+        timezoneOffsetMinutes: Int,
+    ): DiaryDayResponse {
+        if (request.steps !in 0..100_000) throw BadRequestException("Шаги должны быть от 0 до 100000")
+        if (request.kcal !in 0..10_000) throw BadRequestException("Калории активности должны быть от 0 до 10000")
+
+        val existing = loadActivity(actor, localDate)
+        val shouldUpdate = existing == null ||
+            request.kcal > existing.kcal ||
+            request.steps > existing.steps ||
+            (request.kcal == existing.kcal && request.steps == existing.steps && request.source != existing.source)
+
+        if (shouldUpdate) {
+            dailyActivityRepository.upsert(
+                DailyActivityRecord(
+                    deviceId = actor.deviceId,
+                    userId = actor.userId,
+                    localDate = localDate,
+                    steps = request.steps,
+                    kcal = request.kcal,
+                    source = request.source,
+                    updatedAt = Instant.now(),
+                ),
+            )
+            log.info(
+                "activity sync device={} date={} steps={} kcal={} source={}",
+                mask(actor.deviceId),
+                localDate,
+                request.steps,
+                request.kcal,
+                request.source,
+            )
+        }
+
+        return getDay(actor, localDate, timezoneOffsetMinutes)
+    }
+
     private suspend fun resolveDishes(actor: Actor, request: DiaryService.CreateDiaryEntryRequest): List<DishDto> {
         request.scanId?.let { scanId ->
             val session = scanSessionRepository.findById(scanId)
@@ -229,6 +280,14 @@ class DiaryServiceImpl(
             workoutRepository.findByUser(actor.userId, date, tzOffsetMin)
         } else {
             workoutRepository.findByDevice(actor.deviceId, date, tzOffsetMin)
+        }
+
+    private suspend fun loadActivity(actor: Actor, date: LocalDate): DailyActivityRecord? =
+        if (actor.userId != null) {
+            dailyActivityRepository.findByUser(actor.userId, date)
+                ?: dailyActivityRepository.findByDevice(actor.deviceId, date)
+        } else {
+            dailyActivityRepository.findByDevice(actor.deviceId, date)
         }
 
     private fun ownsEntry(actor: Actor, entry: DiaryEntryRecord): Boolean =

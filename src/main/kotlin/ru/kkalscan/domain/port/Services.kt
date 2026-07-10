@@ -82,6 +82,13 @@ interface DiaryService {
 
     suspend fun parseWorkoutDescription(actor: Actor, description: String): WorkoutParseResult
 
+    suspend fun syncActivity(
+        actor: Actor,
+        request: SyncActivityRequest,
+        localDate: LocalDate,
+        timezoneOffsetMinutes: Int,
+    ): DiaryDayResponse
+
     data class CreateDiaryEntryRequest(
         val mealType: MealType,
         val scanId: UUID? = null,
@@ -91,6 +98,12 @@ interface DiaryService {
     data class CreateWorkoutRequest(
         val name: String,
         val kcal: Int,
+    )
+
+    data class SyncActivityRequest(
+        val steps: Int,
+        val kcal: Int,
+        val source: ActivitySourceKind,
     )
 }
 
@@ -232,6 +245,9 @@ data class DiaryDayResponse(
     val totalKcal: Int,
     val totalBurnedKcal: Int,
     val netKcal: Int,
+    val activityKcal: Int = 0,
+    val activitySteps: Int? = null,
+    val activitySource: ActivitySourceKind = ActivitySourceKind.None,
     val scansLeft: Int?,
     val isPro: Boolean,
     val accountLinked: Boolean,
@@ -346,6 +362,32 @@ interface WorkoutRepository {
     suspend fun delete(id: UUID)
 
     suspend fun findById(id: UUID): WorkoutRecord?
+
+    suspend fun updateUserIdForDevice(deviceId: UUID, userId: UUID)
+}
+
+enum class ActivitySourceKind {
+    DeviceSensor,
+    Emulator,
+    None,
+}
+
+data class DailyActivityRecord(
+    val deviceId: UUID,
+    val userId: UUID?,
+    val localDate: LocalDate,
+    val steps: Int,
+    val kcal: Int,
+    val source: ActivitySourceKind,
+    val updatedAt: Instant,
+)
+
+interface DailyActivityRepository {
+    suspend fun findByDevice(deviceId: UUID, date: LocalDate): DailyActivityRecord?
+
+    suspend fun findByUser(userId: UUID, date: LocalDate): DailyActivityRecord?
+
+    suspend fun upsert(record: DailyActivityRecord): DailyActivityRecord
 
     suspend fun updateUserIdForDevice(deviceId: UUID, userId: UUID)
 }

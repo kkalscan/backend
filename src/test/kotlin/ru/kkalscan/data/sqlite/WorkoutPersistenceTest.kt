@@ -50,11 +50,13 @@ class WorkoutPersistenceTest {
         val dataSource = freshDatabase("workout-test.db")
         val diaryRepo = InMemoryDiaryRepository()
         val workoutRepo = SqliteWorkoutRepository(dataSource)
+        val activityRepo = SqliteDailyActivityRepository(dataSource)
         val repos = InMemoryRepositories()
         val quotaService = QuotaServiceImpl(repos.quotas, repos.devices, repos.users)
         val diaryService = DiaryServiceImpl(
             diaryRepo,
             workoutRepo,
+            activityRepo,
             quotaService,
             repos.scanSessions,
             StubVisionClient(),
@@ -88,9 +90,11 @@ class WorkoutPersistenceTest {
         )
 
         val restartedWorkoutRepo = SqliteWorkoutRepository(dataSource)
+        val restartedActivityRepo = SqliteDailyActivityRepository(dataSource)
         val day = DiaryServiceImpl(
             diaryRepo,
             restartedWorkoutRepo,
+            restartedActivityRepo,
             quotaService,
             repos.scanSessions,
             StubVisionClient(),

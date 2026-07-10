@@ -25,6 +25,7 @@ class ScanAndDiaryServiceTest {
     private val diaryService = DiaryServiceImpl(
         repos.diary,
         repos.workouts,
+        repos.dailyActivity,
         quotaService,
         repos.scanSessions,
         StubVisionClient(),

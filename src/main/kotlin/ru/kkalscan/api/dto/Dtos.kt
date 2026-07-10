@@ -5,6 +5,7 @@ import ru.kkalscan.domain.model.DishDto
 import ru.kkalscan.domain.model.MealType
 import ru.kkalscan.domain.port.ActivityEmulatorResponse
 import ru.kkalscan.domain.port.CreateDiaryEntryResponse
+import ru.kkalscan.domain.port.ActivitySourceKind
 import ru.kkalscan.domain.port.DiaryDayResponse
 import ru.kkalscan.domain.port.DiaryEntryDto
 import ru.kkalscan.domain.port.ScanService
@@ -96,6 +97,9 @@ data class DiaryDayJson(
     val total_kcal: Int,
     val total_burned_kcal: Int = 0,
     val net_kcal: Int = total_kcal,
+    val activity_kcal: Int = 0,
+    val activity_steps: Int? = null,
+    val activity_source: String = "none",
     val scans_left: Int? = null,
     val is_pro: Boolean,
     val account_linked: Boolean,
@@ -144,6 +148,15 @@ data class WorkoutParseResponse(
 @Serializable
 data class WorkoutResponse(
     val workout: WorkoutEntryJson,
+)
+
+@Serializable
+data class ActivitySyncRequest(
+    val device_id: String,
+    val steps: Int,
+    val kcal: Int,
+    val source: String = "none",
+    val timezone_offset_minutes: Int = 180,
 )
 
 @Serializable
@@ -271,6 +284,9 @@ fun DiaryDayResponse.toJson() = DiaryDayJson(
     total_kcal = totalKcal,
     total_burned_kcal = totalBurnedKcal,
     net_kcal = netKcal,
+    activity_kcal = activityKcal,
+    activity_steps = activitySteps,
+    activity_source = activitySource.toWire(),
     scans_left = scansLeft,
     is_pro = isPro,
     account_linked = accountLinked,
@@ -278,6 +294,20 @@ fun DiaryDayResponse.toJson() = DiaryDayJson(
     entries = entries.map { it.toJson() },
     workouts = workouts.map { it.toJson() },
 )
+
+private fun ActivitySourceKind.toWire(): String =
+    when (this) {
+        ActivitySourceKind.DeviceSensor -> "device_sensor"
+        ActivitySourceKind.Emulator -> "emulator"
+        ActivitySourceKind.None -> "none"
+    }
+
+fun parseActivitySource(raw: String): ActivitySourceKind =
+    when (raw.trim().lowercase()) {
+        "device_sensor" -> ActivitySourceKind.DeviceSensor
+        "emulator" -> ActivitySourceKind.Emulator
+        else -> ActivitySourceKind.None
+    }
 
 fun DiaryEntryDto.toJson() = DiaryEntryJson(
     id = id.toString(),
