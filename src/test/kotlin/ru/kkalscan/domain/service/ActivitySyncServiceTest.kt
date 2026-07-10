@@ -23,7 +23,7 @@ class ActivitySyncServiceTest {
         repos.visionBudget,
     )
     private val actor = TestFixtures.guestActor()
-    private val date = LocalDate.of(2026, 7, 9)
+    private val date = LocalDate.of(2026, 7, 10)
 
     @Test
     fun `activity sync persists steps and sums with workouts in total burned`() = runTest {
