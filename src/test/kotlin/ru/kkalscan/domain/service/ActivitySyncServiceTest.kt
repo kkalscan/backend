@@ -6,7 +6,8 @@ import ru.kkalscan.data.memory.InMemoryRepositories
 import ru.kkalscan.domain.port.ActivitySourceKind
 import ru.kkalscan.domain.port.DiaryService
 import ru.kkalscan.integrations.StubVisionClient
-import java.time.LocalDate
+import java.time.Instant
+import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -23,7 +24,11 @@ class ActivitySyncServiceTest {
         repos.visionBudget,
     )
     private val actor = TestFixtures.guestActor()
-    private val date = LocalDate.of(2026, 7, 10)
+    /** Match workout `createdAt = Instant.now()` day filtering (+03:00). */
+    private val timezoneOffsetMinutes = 180
+    private val date = Instant.now()
+        .atOffset(ZoneOffset.ofTotalSeconds(timezoneOffsetMinutes * 60))
+        .toLocalDate()
 
     @Test
     fun `activity sync persists steps and sums with workouts in total burned`() = runTest {
@@ -37,7 +42,7 @@ class ActivitySyncServiceTest {
                 source = ActivitySourceKind.DeviceSensor,
             ),
             date,
-            timezoneOffsetMinutes = 180,
+            timezoneOffsetMinutes = timezoneOffsetMinutes,
         )
 
         assertEquals(350, synced.activityKcal)
@@ -52,13 +57,13 @@ class ActivitySyncServiceTest {
             actor,
             DiaryService.SyncActivityRequest(5000, 200, ActivitySourceKind.DeviceSensor),
             date,
-            180,
+            timezoneOffsetMinutes,
         )
         val updated = diaryService.syncActivity(
             actor,
             DiaryService.SyncActivityRequest(4000, 150, ActivitySourceKind.DeviceSensor),
             date,
-            180,
+            timezoneOffsetMinutes,
         )
 
         assertEquals(200, updated.activityKcal)
