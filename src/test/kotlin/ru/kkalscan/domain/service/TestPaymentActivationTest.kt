@@ -14,6 +14,7 @@ import kotlin.test.assertTrue
 class TestPaymentActivationTest {
     private val repos = InMemoryRepositories()
     private val subscriptionService = SubscriptionServiceImpl(repos.devices, repos.users)
+    private val promoService = PromoService(repos.promoCodes, repos.devicePromoBindings)
     private val mailer = LoggingPlainTextMailer()
     private val service = PaymentServiceImpl(
         repos.payments,
@@ -21,6 +22,7 @@ class TestPaymentActivationTest {
         subscriptionService,
         StubTochkaClient(),
         mailer,
+        promoService,
         testPaymentNotifyTo = "owner@example.com",
         testPaymentSecret = "test-secret",
     )

@@ -218,6 +218,34 @@ data class ProSubscriptionStartResponse(
 )
 
 @Serializable
+data class SubscriptionOfferJson(
+    val tariff: String,
+    val title: String,
+    val price_rub: Int,
+    val amount_rub: Int,
+    val amount_kopecks: Int,
+    val discount_percent: Int = 0,
+    val promo_code: String? = null,
+)
+
+@Serializable
+data class SubscriptionOffersResponse(
+    val offers: List<SubscriptionOfferJson>,
+)
+
+@Serializable
+data class PromoApplyRequest(
+    val device_id: String,
+    val promo_code: String,
+)
+
+@Serializable
+data class PromoApplyResponse(
+    val promo_code: String,
+    val discount_percent: Int,
+)
+
+@Serializable
 data class WebhookAck(val ok: Boolean = true)
 
 @Serializable

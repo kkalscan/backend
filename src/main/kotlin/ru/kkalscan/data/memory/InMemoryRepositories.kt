@@ -353,4 +353,6 @@ data class InMemoryRepositories(
     val bugReports: InMemoryBugReportRepository = InMemoryBugReportRepository(),
     val searchLogs: InMemorySearchLogRepository = InMemorySearchLogRepository(),
     val featureSearch: InMemoryFeatureSearchRepository = InMemoryFeatureSearchRepository(),
+    val promoCodes: InMemoryPromoCodeRepository = InMemoryPromoCodeRepository(),
+    val devicePromoBindings: InMemoryDevicePromoBindingRepository = InMemoryDevicePromoBindingRepository(),
 )

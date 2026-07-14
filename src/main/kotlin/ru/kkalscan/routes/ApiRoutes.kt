@@ -23,11 +23,15 @@ import ru.kkalscan.api.dto.TestPaymentActivateRequest
 import ru.kkalscan.api.dto.TestPaymentActivateResponse
 import ru.kkalscan.api.dto.ProSubscriptionStartRequest
 import ru.kkalscan.api.dto.ProSubscriptionStartResponse
+import ru.kkalscan.api.dto.PromoApplyRequest
+import ru.kkalscan.api.dto.PromoApplyResponse
 import ru.kkalscan.api.dto.PaymentCreateJson
 import ru.kkalscan.api.dto.PaymentCreateRequest
 import ru.kkalscan.api.dto.ScanBonusRequest
 import ru.kkalscan.api.dto.ScanTextRequest
 import ru.kkalscan.api.dto.ScanResponse
+import ru.kkalscan.api.dto.SubscriptionOfferJson
+import ru.kkalscan.api.dto.SubscriptionOffersResponse
 import ru.kkalscan.api.dto.SubscriptionStatusResponse
 import ru.kkalscan.api.dto.VkAuthRequest
 import ru.kkalscan.api.dto.WebhookAck
@@ -223,6 +227,36 @@ fun Application.configureRouting(module: AppModule) {
                 val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
                 val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
                 call.respond(module.subscriptionService.getStatus(actor).toJson())
+            }
+
+            get("/subscription/offers") {
+                val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
+                module.repos.devices.getOrCreate(deviceId)
+                val offers = module.promoService.listOffers(deviceId).map { offer ->
+                    SubscriptionOfferJson(
+                        tariff = offer.tariff,
+                        title = offer.title,
+                        price_rub = offer.priceRub,
+                        amount_rub = offer.amountRub,
+                        amount_kopecks = offer.amountKopecks,
+                        discount_percent = offer.discountPercent,
+                        promo_code = offer.promoCode,
+                    )
+                }
+                call.respond(SubscriptionOffersResponse(offers = offers))
+            }
+
+            post("/promo/apply") {
+                val body = call.receive<PromoApplyRequest>()
+                val deviceId = parseUuid(body.device_id, "device_id")
+                module.repos.devices.getOrCreate(deviceId)
+                val result = module.promoService.applyPromo(deviceId, body.promo_code)
+                call.respond(
+                    PromoApplyResponse(
+                        promo_code = result.promoCode,
+                        discount_percent = result.discountPercent,
+                    ),
+                )
             }
 
             post("/auth/vk") {

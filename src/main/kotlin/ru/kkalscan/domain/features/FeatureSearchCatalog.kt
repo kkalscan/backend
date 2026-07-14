@@ -17,7 +17,7 @@ object FeatureSearchCatalog {
         FeatureSearchItemRecord("journal", "Дневник за неделю", "Графики калорий и БЖУ", "дневник,неделя,график,статистика,калории,прогресс,журнал", "kkalscan://journal", "journal", 20),
         FeatureSearchItemRecord("fiber", "Клетчатка", "График клетчатки за неделю", "клетчатка,график,кл,волокна,клетчатки", "kkalscan://journal/fiber", "fiber", 25),
         FeatureSearchItemRecord("profile", "Профиль", "Подписка Pro и настройки", "профиль,настройки,pro,подписка,аккаунт,личный", "kkalscan://profile", "profile", 30),
-        FeatureSearchItemRecord("paywall", "Pro подписка", "Безлимитные сканы — 199 ₽/мес", "pro,подписка,безлимит,199,оплата,лимит", "kkalscan://paywall", "pro", 40),
+        FeatureSearchItemRecord("paywall", "Pro подписка", "Безлимитные сканы без рекламы", "pro,подписка,безлимит,оплата,лимит", "kkalscan://paywall", "pro", 40),
         FeatureSearchItemRecord("macros", "БЖУ за неделю", "Белки, жиры и углеводы", "бжу,белки,жиры,углеводы,макросы,белок", "kkalscan://journal", "macros", 22),
         FeatureSearchItemRecord("free_scans", "Бесплатные сканы", "3 скана каждый день", "сканы,бесплатно,лимит,осталось,бесплатный", "kkalscan://diary", "gift", 12),
         FeatureSearchItemRecord("dietitian", "Анализ диетолога", "AI-разбор питания за неделю", "диетолог,анализ,разбор,ai,insight,рекомендации", "kkalscan://journal/dietitian", "dietitian", 35),

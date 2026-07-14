@@ -12,8 +12,6 @@ import ru.kkalscan.domain.port.PaymentService
 import ru.kkalscan.domain.port.SubscriptionService
 import ru.kkalscan.domain.port.TochkaClient
 import ru.kkalscan.domain.model.Actor
-import ru.kkalscan.domain.service.SubscriptionServiceImpl.Companion.PRO_DAYS
-import ru.kkalscan.domain.service.SubscriptionServiceImpl.Companion.TARIFF
 import java.time.temporal.ChronoUnit
 import java.time.Instant
 import java.util.UUID
@@ -24,6 +22,7 @@ class PaymentServiceImpl(
     private val subscriptionService: SubscriptionService,
     private val tochkaClient: TochkaClient,
     private val plainTextMailer: PlainTextMailer,
+    private val promoService: PromoService,
     private val testPaymentNotifyTo: String = AppConfig.testPaymentNotifyTo,
     private val testPaymentSecret: String = AppConfig.testPaymentSecret,
     private val testPaymentEnabled: Boolean = AppConfig.testPaymentEnabled,
@@ -32,7 +31,7 @@ class PaymentServiceImpl(
 
     override suspend fun startProSubscription(deviceId: UUID, tariff: String): PaymentService.ProSubscriptionStartResult {
         deviceRepository.getOrCreate(deviceId)
-        if (tariff != TARIFF) throw BadRequestException("Неизвестный тариф")
+        TariffCatalog.require(tariff)
 
         if (freeProActivationEnabled) {
             return activateFreePro(deviceId, tariff)
@@ -50,6 +49,8 @@ class PaymentServiceImpl(
     }
 
     private suspend fun activateFreePro(deviceId: UUID, tariff: String): PaymentService.ProSubscriptionStartResult {
+        val offer = TariffCatalog.require(tariff)
+        val priced = resolveAmount(deviceId, offer)
         val paidAt = Instant.now()
         val paymentId = UUID.randomUUID()
         paymentRepository.create(
@@ -58,7 +59,7 @@ class PaymentServiceImpl(
                 deviceId = deviceId,
                 userId = deviceRepository.findById(deviceId)?.userId,
                 tochkaPaymentId = "free_$paymentId",
-                amountKopecks = 0,
+                amountKopecks = priced.amountKopecks,
                 tariff = tariff,
                 status = "free_promo",
                 paidAt = paidAt,
@@ -81,26 +82,30 @@ class PaymentServiceImpl(
             proUntil = status.proUntil,
             tariff = tariff,
             paymentRequired = false,
-            message = "Pro активирован на ${PRO_DAYS} дней",
+            message = "Pro активирован на ${offer.durationDays} дней",
         )
     }
 
     override suspend fun createTochkaPayment(deviceId: UUID, tariff: String): PaymentCreateResponse {
         deviceRepository.getOrCreate(deviceId)
-        if (tariff != TARIFF) throw BadRequestException("Неизвестный тариф")
+        val offer = TariffCatalog.require(tariff)
+        val priced = resolveAmount(deviceId, offer)
 
         val paymentId = UUID.randomUUID()
         val baseUrl = AppConfig.publicBaseUrl.trimEnd('/')
+        val metadata = mutableMapOf(
+            "device_id" to deviceId.toString(),
+            "tariff" to tariff,
+            "payment_link_id" to paymentId.toString(),
+            "redirect_url" to "$baseUrl/pay/success?device_id=$deviceId",
+            "fail_redirect_url" to "$baseUrl/pay/fail?device_id=$deviceId",
+        )
+        priced.promoCode?.let { metadata["promo_code"] = it }
+
         val tochka = tochkaClient.createPayment(
-            amountKopecks = PRO_PRICE_KOPECKS,
-            description = "KkalScan Pro — ${PRO_PRICE_RUB} ₽/мес",
-            metadata = mapOf(
-                "device_id" to deviceId.toString(),
-                "tariff" to tariff,
-                "payment_link_id" to paymentId.toString(),
-                "redirect_url" to "$baseUrl/pay/success?device_id=$deviceId",
-                "fail_redirect_url" to "$baseUrl/pay/fail?device_id=$deviceId",
-            ),
+            amountKopecks = priced.amountKopecks,
+            description = "${offer.title} — ${priced.amountRub} ₽",
+            metadata = metadata,
         )
 
         paymentRepository.create(
@@ -109,7 +114,7 @@ class PaymentServiceImpl(
                 deviceId = deviceId,
                 userId = deviceRepository.findById(deviceId)?.userId,
                 tochkaPaymentId = tochka.id,
-                amountKopecks = PRO_PRICE_KOPECKS,
+                amountKopecks = priced.amountKopecks,
                 tariff = tariff,
                 status = "pending",
                 paidAt = null,
@@ -127,6 +132,8 @@ class PaymentServiceImpl(
             throw ForbiddenException("Неверный секрет")
         }
 
+        val offer = TariffCatalog.require(TariffCatalog.MONTHLY_ID)
+        val priced = resolveAmount(deviceId, offer)
         deviceRepository.getOrCreate(deviceId)
         val paidAt = Instant.now()
 
@@ -138,10 +145,10 @@ class PaymentServiceImpl(
                     appendLine("Тестовая оплата Pro активирована.")
                     appendLine()
                     appendLine("Device ID: $deviceId")
-                    appendLine("Тариф: $TARIFF")
-                    appendLine("Сумма: ${PRO_PRICE_RUB} ₽")
+                    appendLine("Тариф: ${offer.id}")
+                    appendLine("Сумма: ${priced.amountRub} ₽")
                     appendLine("Оплачено: $paidAt")
-                    appendLine("Срок: ${PRO_DAYS} дней")
+                    appendLine("Срок: ${offer.durationDays} дней")
                 },
             )
         }.onFailure { e ->
@@ -155,13 +162,13 @@ class PaymentServiceImpl(
                 deviceId = deviceId,
                 userId = deviceRepository.findById(deviceId)?.userId,
                 tochkaPaymentId = "test_$paymentId",
-                amountKopecks = PRO_PRICE_KOPECKS,
-                tariff = TARIFF,
+                amountKopecks = priced.amountKopecks,
+                tariff = offer.id,
                 status = "test_paid",
                 paidAt = paidAt,
             ),
         )
-        subscriptionService.activatePro(deviceId, TARIFF, paidAt)
+        subscriptionService.activatePro(deviceId, offer.id, paidAt)
 
         val status = subscriptionService.getStatus(
             Actor(
@@ -172,12 +179,12 @@ class PaymentServiceImpl(
                 linkedProviders = emptyList(),
             ),
         )
-        val proUntil = status.proUntil ?: paidAt.plus(PRO_DAYS, ChronoUnit.DAYS)
+        val proUntil = status.proUntil ?: paidAt.plus(offer.durationDays, ChronoUnit.DAYS)
 
         return PaymentService.TestPaymentResult(
             isPro = status.isPro,
             proUntil = proUntil,
-            tariff = TARIFF,
+            tariff = offer.id,
             emailSent = true,
         )
     }
@@ -208,10 +215,12 @@ class PaymentServiceImpl(
     override suspend fun renderPayPage(deviceId: UUID): String {
         deviceRepository.getOrCreate(deviceId)
         if (freeProActivationEnabled) {
-            activateFreePro(deviceId, TARIFF)
+            activateFreePro(deviceId, TariffCatalog.MONTHLY_ID)
             return renderPaySuccessPage(deviceId)
         }
-        val response = createTochkaPayment(deviceId, TARIFF)
+        val offer = TariffCatalog.require(TariffCatalog.MONTHLY_ID)
+        val priced = resolveAmount(deviceId, offer)
+        val response = createTochkaPayment(deviceId, offer.id)
         val paymentUrl = response.paymentUrl
         return """
             <!DOCTYPE html>
@@ -227,7 +236,7 @@ class PaymentServiceImpl(
               </style>
             </head>
             <body>
-              <h1>KkalScan Pro — ${PRO_PRICE_RUB} ₽/мес</h1>
+              <h1>${offer.title} — ${priced.amountRub} ₽</h1>
               <p>Безлимитные сканы калорий по фото. Оплата картой или СБП.</p>
               <p><a href="$paymentUrl">Перейти к оплате</a></p>
             </body>
@@ -274,8 +283,20 @@ class PaymentServiceImpl(
             </html>
         """.trimIndent()
 
-    companion object {
-        const val PRO_PRICE_KOPECKS = 19_900
-        const val PRO_PRICE_RUB = 199
+    private fun resolveAmount(deviceId: UUID, offer: TariffOffer): PricedOffer {
+        val bound = promoService.getBoundPromo(deviceId)
+        val discount = bound?.discountPercent ?: 0
+        val amountKopecks = TariffCatalog.discountedKopecks(offer.priceKopecks, discount)
+        return PricedOffer(
+            amountKopecks = amountKopecks,
+            amountRub = amountKopecks / 100,
+            promoCode = bound?.promoCode?.takeIf { discount > 0 },
+        )
     }
+
+    private data class PricedOffer(
+        val amountKopecks: Int,
+        val amountRub: Int,
+        val promoCode: String?,
+    )
 }

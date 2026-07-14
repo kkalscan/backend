@@ -29,7 +29,8 @@ class SubscriptionServiceImpl(
     }
 
     override suspend fun activatePro(deviceId: UUID, tariff: String, paidAt: Instant) {
-        val until = paidAt.plus(PRO_DAYS, ChronoUnit.DAYS)
+        val days = TariffCatalog.find(tariff)?.durationDays ?: PRO_DAYS
+        val until = paidAt.plus(days, ChronoUnit.DAYS)
         val device = deviceRepository.getOrCreate(deviceId)
         if (device.userId != null) {
             val user = userRepository.findById(device.userId)!!
@@ -49,7 +50,7 @@ class SubscriptionServiceImpl(
         }
 
     companion object {
-        const val TARIFF = "pro_monthly_199"
+        const val TARIFF = TariffCatalog.MONTHLY_ID
         const val PRO_DAYS = 30L
     }
 }

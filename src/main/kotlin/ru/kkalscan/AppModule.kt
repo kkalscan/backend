@@ -34,6 +34,7 @@ import ru.kkalscan.domain.service.FoodSearchServiceImpl
 import ru.kkalscan.domain.service.IdentityResolverImpl
 import ru.kkalscan.domain.service.JwtIssuer
 import ru.kkalscan.domain.service.PaymentServiceImpl
+import ru.kkalscan.domain.service.PromoService
 import ru.kkalscan.domain.service.QuotaServiceImpl
 import ru.kkalscan.domain.service.ScanServiceImpl
 import ru.kkalscan.domain.service.SubscriptionServiceImpl
@@ -155,12 +156,18 @@ data class AppModule(
         LoggingPlainTextMailer()
     }
 
+    val promoService: PromoService = PromoService(
+        repos.promoCodes,
+        repos.devicePromoBindings,
+    )
+
     val paymentService: PaymentService = PaymentServiceImpl(
         repos.payments,
         repos.devices,
         subscriptionService,
         tochkaClient,
         plainTextMailer,
+        promoService,
     )
 
     val bugReportService: BugReportService = BugReportServiceImpl(

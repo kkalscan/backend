@@ -140,7 +140,10 @@ class ApiRoutesTest {
         assertEquals("population_default", body["mode"]!!.jsonPrimitive.content)
         val activeKcal = body["estimated_active_kcal"]!!.jsonPrimitive.int
         assertTrue(activeKcal in 0..1500)
-        assertEquals((activeKcal / 0.04).toInt(), body["estimated_steps"]!!.jsonPrimitive.int)
+        assertEquals(
+            kotlin.math.round(activeKcal / AppConfig.ACTIVITY_EMULATOR_KCAL_PER_STEP).toInt(),
+            body["estimated_steps"]!!.jsonPrimitive.int,
+        )
     }
 
     @Test
@@ -616,5 +619,57 @@ class ApiRoutesTest {
         assertEquals(HttpStatusCode.OK, top.status)
         val queries = json.parseToJsonElement(top.bodyAsText()).jsonObject["queries"]!!.jsonArray
         assertTrue(queries.any { it.jsonObject["query"]!!.jsonPrimitive.content == "профиль" })
+    }
+
+    @Test
+    fun `subscription offers return catalog prices`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+
+        val response = client.get("/api/v1/subscription/offers?device_id=$deviceId")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val offers = json.parseToJsonElement(response.bodyAsText()).jsonObject["offers"]!!.jsonArray
+        assertEquals(2, offers.size)
+        val byTariff = offers.associateBy { it.jsonObject["tariff"]!!.jsonPrimitive.content }
+        assertEquals(200, byTariff["pro_monthly_199"]!!.jsonObject["amount_rub"]!!.jsonPrimitive.int)
+        assertEquals(5000, byTariff["pro_lifetime_5000"]!!.jsonObject["amount_rub"]!!.jsonPrimitive.int)
+    }
+
+    @Test
+    fun `promo apply binds and discounts offers`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+
+        val apply = client.post("/api/v1/promo/apply") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"device_id":"$deviceId","promo_code":"Lida"}""")
+        }
+        assertEquals(HttpStatusCode.OK, apply.status)
+        val applyBody = json.parseToJsonElement(apply.bodyAsText()).jsonObject
+        assertEquals("Lida", applyBody["promo_code"]!!.jsonPrimitive.content)
+        assertEquals(50, applyBody["discount_percent"]!!.jsonPrimitive.int)
+
+        val offers = json.parseToJsonElement(
+            client.get("/api/v1/subscription/offers?device_id=$deviceId").bodyAsText(),
+        ).jsonObject["offers"]!!.jsonArray
+        val byTariff = offers.associateBy { it.jsonObject["tariff"]!!.jsonPrimitive.content }
+        assertEquals(100, byTariff["pro_monthly_199"]!!.jsonObject["amount_rub"]!!.jsonPrimitive.int)
+        assertEquals(2500, byTariff["pro_lifetime_5000"]!!.jsonObject["amount_rub"]!!.jsonPrimitive.int)
+
+        val start = client.post("/api/v1/payments/pro/start") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"device_id":"$deviceId","tariff":"pro_lifetime_5000"}""")
+        }
+        assertEquals(HttpStatusCode.OK, start.status)
+        assertTrue(json.parseToJsonElement(start.bodyAsText()).jsonObject["is_pro"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `unknown promo returns 400`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+
+        val response = client.post("/api/v1/promo/apply") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"device_id":"$deviceId","promo_code":"nope"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 }
