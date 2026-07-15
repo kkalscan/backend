@@ -20,6 +20,8 @@ import ru.kkalscan.domain.port.DiaryRepository
 import ru.kkalscan.domain.port.OAuthRepository
 import ru.kkalscan.domain.port.PaymentRecord
 import ru.kkalscan.domain.port.PaymentRepository
+import ru.kkalscan.domain.port.PromoPurchaseRecord
+import ru.kkalscan.domain.port.PromoPurchaseRepository
 import ru.kkalscan.domain.port.ScanQuotaRecord
 import ru.kkalscan.domain.port.ScanQuotaRepository
 import ru.kkalscan.domain.port.ScanSessionRecord
@@ -269,6 +271,19 @@ class InMemoryPaymentRepository : PaymentRepository {
     override suspend fun findById(id: UUID): PaymentRecord? = payments[id]
 }
 
+class InMemoryPromoPurchaseRepository : PromoPurchaseRepository {
+    private val records = mutableListOf<PromoPurchaseRecord>()
+
+    override suspend fun record(record: PromoPurchaseRecord) {
+        synchronized(records) { records.add(record) }
+    }
+
+    override suspend fun findById(id: UUID): PromoPurchaseRecord? =
+        synchronized(records) { records.find { it.id == id } }
+
+    fun all(): List<PromoPurchaseRecord> = synchronized(records) { records.toList() }
+}
+
 class InMemoryVisionBudgetRepository : VisionBudgetRepository {
     private val costs = ConcurrentHashMap<YearMonth, Int>()
 
@@ -349,6 +364,7 @@ data class InMemoryRepositories(
     val users: InMemoryUserRepository = InMemoryUserRepository(),
     val oauth: InMemoryOAuthRepository = InMemoryOAuthRepository(),
     val payments: InMemoryPaymentRepository = InMemoryPaymentRepository(),
+    val promoPurchases: InMemoryPromoPurchaseRepository = InMemoryPromoPurchaseRepository(),
     val visionBudget: InMemoryVisionBudgetRepository = InMemoryVisionBudgetRepository(),
     val bugReports: InMemoryBugReportRepository = InMemoryBugReportRepository(),
     val searchLogs: InMemorySearchLogRepository = InMemorySearchLogRepository(),

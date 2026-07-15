@@ -9,6 +9,8 @@ import ru.kkalscan.domain.port.PaymentCreateResponse
 import ru.kkalscan.domain.port.PaymentRecord
 import ru.kkalscan.domain.port.PaymentRepository
 import ru.kkalscan.domain.port.PaymentService
+import ru.kkalscan.domain.port.PromoPurchaseRecord
+import ru.kkalscan.domain.port.PromoPurchaseRepository
 import ru.kkalscan.domain.port.SubscriptionService
 import ru.kkalscan.domain.port.TochkaClient
 import ru.kkalscan.domain.model.Actor
@@ -23,6 +25,7 @@ class PaymentServiceImpl(
     private val tochkaClient: TochkaClient,
     private val plainTextMailer: PlainTextMailer,
     private val promoService: PromoService,
+    private val promoPurchaseRepository: PromoPurchaseRepository,
     private val testPaymentNotifyTo: String = AppConfig.testPaymentNotifyTo,
     private val testPaymentSecret: String = AppConfig.testPaymentSecret,
     private val testPaymentEnabled: Boolean = AppConfig.testPaymentEnabled,
@@ -64,7 +67,21 @@ class PaymentServiceImpl(
                 tariff = tariff,
                 status = "free_promo",
                 paidAt = paidAt,
+                promoCode = priced.promoCode,
+                discountPercent = priced.discountPercent,
+                listAmountKopecks = offer.priceKopecks,
             ),
+        )
+        recordPromoPurchase(
+            paymentId = paymentId,
+            deviceId = deviceId,
+            tariff = tariff,
+            amountKopecks = priced.amountKopecks,
+            listAmountKopecks = offer.priceKopecks,
+            promoCode = priced.promoCode,
+            discountPercent = priced.discountPercent,
+            status = "free_promo",
+            paidAt = paidAt,
         )
         subscriptionService.activatePro(deviceId, tariff, paidAt)
 
@@ -122,6 +139,9 @@ class PaymentServiceImpl(
                 tariff = tariff,
                 status = "pending",
                 paidAt = null,
+                promoCode = priced.promoCode,
+                discountPercent = priced.discountPercent,
+                listAmountKopecks = offer.priceKopecks,
             ),
         )
 
@@ -170,7 +190,21 @@ class PaymentServiceImpl(
                 tariff = offer.id,
                 status = "test_paid",
                 paidAt = paidAt,
+                promoCode = priced.promoCode,
+                discountPercent = priced.discountPercent,
+                listAmountKopecks = offer.priceKopecks,
             ),
+        )
+        recordPromoPurchase(
+            paymentId = paymentId,
+            deviceId = deviceId,
+            tariff = offer.id,
+            amountKopecks = priced.amountKopecks,
+            listAmountKopecks = offer.priceKopecks,
+            promoCode = priced.promoCode,
+            discountPercent = priced.discountPercent,
+            status = "test_paid",
+            paidAt = paidAt,
         )
         subscriptionService.activatePro(deviceId, offer.id, paidAt)
 
@@ -213,6 +247,17 @@ class PaymentServiceImpl(
         val tochkaId = event.operationId ?: payment.tochkaPaymentId ?: return
         val paidAt = Instant.now()
         paymentRepository.markPaid(payment.id, tochkaId, paidAt)
+        recordPromoPurchase(
+            paymentId = payment.id,
+            deviceId = payment.deviceId,
+            tariff = payment.tariff,
+            amountKopecks = payment.amountKopecks,
+            listAmountKopecks = payment.listAmountKopecks.takeIf { it > 0 } ?: payment.amountKopecks,
+            promoCode = payment.promoCode,
+            discountPercent = payment.discountPercent,
+            status = "paid",
+            paidAt = paidAt,
+        )
         subscriptionService.activatePro(payment.deviceId, payment.tariff, paidAt)
     }
 
@@ -295,6 +340,34 @@ class PaymentServiceImpl(
             amountKopecks = amountKopecks,
             amountRub = amountKopecks / 100,
             promoCode = bound?.promoCode?.takeIf { discount > 0 },
+            discountPercent = discount,
+        )
+    }
+
+    private suspend fun recordPromoPurchase(
+        paymentId: UUID,
+        deviceId: UUID,
+        tariff: String,
+        amountKopecks: Int,
+        listAmountKopecks: Int,
+        promoCode: String?,
+        discountPercent: Int,
+        status: String,
+        paidAt: Instant,
+    ) {
+        promoPurchaseRepository.record(
+            PromoPurchaseRecord(
+                id = UUID.randomUUID(),
+                paymentId = paymentId,
+                deviceId = deviceId,
+                tariff = tariff,
+                amountKopecks = amountKopecks,
+                listAmountKopecks = listAmountKopecks,
+                promoCode = promoCode,
+                discountPercent = discountPercent,
+                status = status,
+                paidAt = paidAt,
+            ),
         )
     }
 
@@ -302,5 +375,6 @@ class PaymentServiceImpl(
         val amountKopecks: Int,
         val amountRub: Int,
         val promoCode: String?,
+        val discountPercent: Int,
     )
 }

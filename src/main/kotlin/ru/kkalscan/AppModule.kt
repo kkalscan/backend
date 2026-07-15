@@ -5,7 +5,9 @@ import ru.kkalscan.data.sqlite.SqliteBugReportRepository
 import ru.kkalscan.data.sqlite.SqliteFeatureSearchRepository
 import ru.kkalscan.data.sqlite.SqliteSearchLogRepository
 import ru.kkalscan.data.sqlite.SqliteDailyActivityRepository
+import ru.kkalscan.data.sqlite.SqlitePromoPurchaseRepository
 import ru.kkalscan.data.sqlite.SqliteWorkoutRepository
+import ru.kkalscan.domain.port.PromoPurchaseRepository
 import ru.kkalscan.domain.port.ActivityEmulatorService
 import ru.kkalscan.domain.port.AuthService
 import ru.kkalscan.domain.port.BugReportMailer
@@ -71,6 +73,9 @@ data class AppModule(
 
     val dailyActivityRepository: DailyActivityRepository =
         dataSource?.let { SqliteDailyActivityRepository(it) } ?: repos.dailyActivity
+
+    val promoPurchaseRepository: PromoPurchaseRepository =
+        dataSource?.let { SqlitePromoPurchaseRepository(it) } ?: repos.promoPurchases
 
     val foodSearchService: FoodSearchService = FoodSearchServiceImpl(searchLogRepository)
 
@@ -168,6 +173,7 @@ data class AppModule(
         tochkaClient,
         plainTextMailer,
         promoService,
+        promoPurchaseRepository,
     )
 
     val bugReportService: BugReportService = BugReportServiceImpl(

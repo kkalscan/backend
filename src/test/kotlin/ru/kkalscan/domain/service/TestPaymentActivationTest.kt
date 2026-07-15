@@ -23,6 +23,7 @@ class TestPaymentActivationTest {
         StubTochkaClient(),
         mailer,
         promoService,
+        repos.promoPurchases,
         testPaymentNotifyTo = "owner@example.com",
         testPaymentSecret = "test-secret",
     )
@@ -39,6 +40,20 @@ class TestPaymentActivationTest {
         assertEquals("owner@example.com", mailer.sent.single().first)
         assertTrue(mailer.sent.single().second.contains("тестовая оплата"))
         assertTrue(subscriptionService.getStatus(TestFixtures.guestActor()).isPro)
+    }
+
+    @Test
+    fun `activate test payment with promo records promo purchase event`() = runTest {
+        promoService.applyPromo(deviceId, "Lida")
+
+        service.activateTestPayment(deviceId, "test-secret")
+
+        val event = repos.promoPurchases.all().single()
+        assertEquals("Lida", event.promoCode)
+        assertEquals(50, event.discountPercent)
+        assertEquals(10_000, event.amountKopecks)
+        assertEquals(20_000, event.listAmountKopecks)
+        assertEquals("test_paid", event.status)
     }
 
     @Test

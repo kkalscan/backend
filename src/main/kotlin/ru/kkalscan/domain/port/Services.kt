@@ -515,4 +515,7 @@ data class PaymentRecord(
     val tariff: String,
     val status: String,
     val paidAt: Instant?,
+    val promoCode: String? = null,
+    val discountPercent: Int = 0,
+    val listAmountKopecks: Int = 0,
 )

@@ -48,6 +48,7 @@ class PaymentServiceTest {
         StubTochkaClient(),
         mailer,
         promoService,
+        repos.promoPurchases,
         testPaymentNotifyTo = "owner@example.com",
         testPaymentSecret = "test-secret",
     )
@@ -60,6 +61,7 @@ class PaymentServiceTest {
         StubTochkaClient(),
         mailer,
         promoService,
+        repos.promoPurchases,
         testPaymentNotifyTo = "owner@example.com",
         testPaymentSecret = "test-secret",
         freeProActivationEnabled = free,
@@ -75,6 +77,7 @@ class PaymentServiceTest {
         tochka,
         mailer,
         promoService,
+        repos.promoPurchases,
         testPaymentNotifyTo = "owner@example.com",
         testPaymentSecret = "test-secret",
         freeProActivationEnabled = false,
@@ -228,6 +231,66 @@ class PaymentServiceTest {
         val paid = tochkaService.createTochkaPayment(deviceId, TariffCatalog.LIFETIME_ID)
 
         assertEquals(250_000, repos.payments.findById(paid.paymentId)?.amountKopecks)
+    }
+
+    @Test
+    fun `free activation with promo records promo purchase event`() = runTest {
+        promoService.applyPromo(deviceId, "Lida")
+        val service = paidService(free = true)
+
+        service.startProSubscription(deviceId, TariffCatalog.MONTHLY_ID)
+
+        val events = repos.promoPurchases.all()
+        assertEquals(1, events.size)
+        val event = events.single()
+        assertEquals(deviceId, event.deviceId)
+        assertEquals(TariffCatalog.MONTHLY_ID, event.tariff)
+        assertEquals("Lida", event.promoCode)
+        assertEquals(50, event.discountPercent)
+        assertEquals(10_000, event.amountKopecks)
+        assertEquals(20_000, event.listAmountKopecks)
+        assertEquals("free_promo", event.status)
+        assertNotNull(event.paidAt)
+        assertNotNull(event.paymentId)
+    }
+
+    @Test
+    fun `free activation without promo records purchase with null promo code`() = runTest {
+        val service = paidService(free = true)
+
+        service.startProSubscription(deviceId, TariffCatalog.MONTHLY_ID)
+
+        val event = repos.promoPurchases.all().single()
+        assertNull(event.promoCode)
+        assertEquals(0, event.discountPercent)
+        assertEquals(20_000, event.amountKopecks)
+        assertEquals(20_000, event.listAmountKopecks)
+        assertEquals("free_promo", event.status)
+    }
+
+    @Test
+    fun `paid webhook with promo records promo purchase from stored payment fields`() = runTest {
+        promoService.applyPromo(deviceId, "Lida")
+        val response = service.createTochkaPayment(deviceId, TariffCatalog.MONTHLY_ID)
+        val pending = assertNotNull(repos.payments.findById(response.paymentId))
+        assertEquals("Lida", pending.promoCode)
+        assertEquals(50, pending.discountPercent)
+        assertEquals(20_000, pending.listAmountKopecks)
+        assertEquals(0, repos.promoPurchases.all().size)
+
+        val tochkaId = "tochka_${response.paymentId.toString().take(8)}"
+        service.handleTochkaWebhook(
+            """{"payment_id":"$tochkaId","payment_link_id":"${response.paymentId}","status":"paid"}""",
+            "test-signature",
+        )
+
+        val event = repos.promoPurchases.all().single()
+        assertEquals(response.paymentId, event.paymentId)
+        assertEquals("Lida", event.promoCode)
+        assertEquals(50, event.discountPercent)
+        assertEquals(10_000, event.amountKopecks)
+        assertEquals(20_000, event.listAmountKopecks)
+        assertEquals("paid", event.status)
     }
 }
 
