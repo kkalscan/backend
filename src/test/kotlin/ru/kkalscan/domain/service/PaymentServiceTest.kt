@@ -5,6 +5,7 @@ import ru.kkalscan.TestFixtures
 import ru.kkalscan.data.memory.InMemoryRepositories
 import ru.kkalscan.domain.BadRequestException
 import ru.kkalscan.domain.port.PromoCode
+import ru.kkalscan.domain.port.TochkaClient
 import ru.kkalscan.integrations.LoggingPlainTextMailer
 import ru.kkalscan.integrations.StubTochkaClient
 import java.time.Instant
@@ -12,9 +13,28 @@ import java.time.temporal.ChronoUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+
+/** Captures last createPayment metadata for assertions. */
+private class RecordingTochkaClient : TochkaClient {
+    var lastMetadata: Map<String, String>? = null
+        private set
+
+    override suspend fun createPayment(
+        amountKopecks: Int,
+        description: String,
+        metadata: Map<String, String>,
+    ): TochkaClient.TochkaPayment {
+        lastMetadata = metadata
+        return StubTochkaClient().createPayment(amountKopecks, description, metadata)
+    }
+
+    override fun parseWebhook(rawBody: String, signature: String?): TochkaClient.TochkaWebhookEvent? =
+        StubTochkaClient().parseWebhook(rawBody, signature)
+}
 
 class PaymentServiceTest {
     private val repos = InMemoryRepositories()
@@ -45,6 +65,22 @@ class PaymentServiceTest {
         freeProActivationEnabled = free,
     )
 
+    private fun serviceWith(
+        tochka: TochkaClient,
+        publicBaseUrl: String,
+    ) = PaymentServiceImpl(
+        repos.payments,
+        repos.devices,
+        subscriptionService,
+        tochka,
+        mailer,
+        promoService,
+        testPaymentNotifyTo = "owner@example.com",
+        testPaymentSecret = "test-secret",
+        freeProActivationEnabled = false,
+        publicBaseUrl = publicBaseUrl,
+    )
+
     @Test
     fun `start pro subscription activates pro in free mode`() = runTest {
         val service = paidService(free = true)
@@ -73,6 +109,36 @@ class PaymentServiceTest {
 
         assertTrue(response.paymentUrl.contains("pay.tochka.example"))
         assertTrue(response.paymentId.toString().isNotBlank())
+    }
+
+    @Test
+    fun `create payment omits redirects when public base url is http`() = runTest {
+        val recording = RecordingTochkaClient()
+        val svc = serviceWith(recording, publicBaseUrl = "http://91.207.75.72:8080")
+
+        svc.createTochkaPayment(deviceId, TariffCatalog.MONTHLY_ID)
+
+        val meta = assertNotNull(recording.lastMetadata)
+        assertFalse(meta.containsKey("redirect_url"))
+        assertFalse(meta.containsKey("fail_redirect_url"))
+    }
+
+    @Test
+    fun `create payment includes https redirects when public base url is https`() = runTest {
+        val recording = RecordingTochkaClient()
+        val svc = serviceWith(recording, publicBaseUrl = "https://pay.example.com")
+
+        svc.createTochkaPayment(deviceId, TariffCatalog.MONTHLY_ID)
+
+        val meta = assertNotNull(recording.lastMetadata)
+        assertEquals(
+            "https://pay.example.com/pay/success?device_id=$deviceId",
+            meta["redirect_url"],
+        )
+        assertEquals(
+            "https://pay.example.com/pay/fail?device_id=$deviceId",
+            meta["fail_redirect_url"],
+        )
     }
 
     @Test

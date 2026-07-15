@@ -10,7 +10,8 @@
 ## 2. PUBLIC_BASE_URL по HTTPS
 
 - Redirect / webhook success URL должны быть публичным HTTPS
-- Без этого Точка не примет `redirect_url` / `fail_redirect_url`
+- Без HTTPS Точка не примет `redirect_url` / `fail_redirect_url`
+- **Без DNS:** можно оставить `PUBLIC_BASE_URL=http://…` — backend **не шлёт** redirect в Точку (оплата создаётся, пользователь возвращается в приложение вручную)
 
 ## 3. Webhook Точки
 

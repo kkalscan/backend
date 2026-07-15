@@ -27,6 +27,7 @@ class PaymentServiceImpl(
     private val testPaymentSecret: String = AppConfig.testPaymentSecret,
     private val testPaymentEnabled: Boolean = AppConfig.testPaymentEnabled,
     private val freeProActivationEnabled: Boolean = AppConfig.freeProActivationEnabled,
+    private val publicBaseUrl: String = AppConfig.publicBaseUrl,
 ) : PaymentService {
 
     override suspend fun startProSubscription(deviceId: UUID, tariff: String): PaymentService.ProSubscriptionStartResult {
@@ -92,14 +93,17 @@ class PaymentServiceImpl(
         val priced = resolveAmount(deviceId, offer)
 
         val paymentId = UUID.randomUUID()
-        val baseUrl = AppConfig.publicBaseUrl.trimEnd('/')
+        val baseUrl = publicBaseUrl.trimEnd('/')
         val metadata = mutableMapOf(
             "device_id" to deviceId.toString(),
             "tariff" to tariff,
             "payment_link_id" to paymentId.toString(),
-            "redirect_url" to "$baseUrl/pay/success?device_id=$deviceId",
-            "fail_redirect_url" to "$baseUrl/pay/fail?device_id=$deviceId",
         )
+        // Tochka rejects http(s) scheme other than https for redirect URLs.
+        if (baseUrl.startsWith("https://", ignoreCase = true)) {
+            metadata["redirect_url"] = "$baseUrl/pay/success?device_id=$deviceId"
+            metadata["fail_redirect_url"] = "$baseUrl/pay/fail?device_id=$deviceId"
+        }
         priced.promoCode?.let { metadata["promo_code"] = it }
 
         val tochka = tochkaClient.createPayment(
