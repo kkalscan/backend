@@ -267,6 +267,18 @@ data class FeatureSearchResponse(
 )
 
 @Serializable
+data class FeatureSearchIntentRequest(
+    val query: String,
+)
+
+@Serializable
+data class FeatureSearchIntentResponse(
+    val query: String,
+    @kotlinx.serialization.SerialName("is_food_intent")
+    val isFoodIntent: Boolean,
+)
+
+@Serializable
 data class FoodSearchResponse(
     val query: String,
     val items: List<DishDto>,

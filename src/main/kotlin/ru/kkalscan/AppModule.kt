@@ -80,7 +80,12 @@ data class AppModule(
     val foodSearchService: FoodSearchService = FoodSearchServiceImpl(searchLogRepository)
 
     val featureSearchService: FeatureSearchService =
-        FeatureSearchServiceImpl(featureSearchRepository, searchLogRepository)
+        FeatureSearchServiceImpl(
+            featureSearchRepository,
+            searchLogRepository,
+            visionClient,
+            repos.visionBudget,
+        )
 
     val bugReportMailer: BugReportMailer = bugReportMailerOverride ?: if (AppConfig.smtpConfigured) {
         SmtpBugReportMailer(

@@ -622,6 +622,37 @@ class ApiRoutesTest {
     }
 
     @Test
+    fun `feature search intent classifies food queries`() = testApplication {
+        application { testModule(TestFixtures.freshModule()) }
+
+        val food = client.post("/api/v1/feature-search/intent") {
+            header("X-Device-Id", deviceId)
+            contentType(ContentType.Application.Json)
+            setBody("""{"query":"борщ"}""")
+        }
+        assertEquals(HttpStatusCode.OK, food.status)
+        val foodBody = json.parseToJsonElement(food.bodyAsText()).jsonObject
+        assertEquals("борщ", foodBody["query"]!!.jsonPrimitive.content)
+        assertTrue(foodBody["is_food_intent"]!!.jsonPrimitive.boolean)
+
+        val feature = client.post("/api/v1/feature-search/intent") {
+            header("X-Device-Id", deviceId)
+            contentType(ContentType.Application.Json)
+            setBody("""{"query":"профиль"}""")
+        }
+        assertEquals(HttpStatusCode.OK, feature.status)
+        val featureBody = json.parseToJsonElement(feature.bodyAsText()).jsonObject
+        assertEquals(false, featureBody["is_food_intent"]!!.jsonPrimitive.boolean)
+
+        val short = client.post("/api/v1/feature-search/intent") {
+            header("X-Device-Id", deviceId)
+            contentType(ContentType.Application.Json)
+            setBody("""{"query":"ab"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, short.status)
+    }
+
+    @Test
     fun `subscription offers return catalog prices`() = testApplication {
         application { testModule(TestFixtures.freshModule()) }
 

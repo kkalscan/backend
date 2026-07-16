@@ -17,6 +17,13 @@ data class FeatureSearchResult(
     val popularFallback: Boolean = false,
 )
 
+data class FeatureSearchIntentResult(
+    val query: String,
+    val isFoodIntent: Boolean,
+)
+
 interface FeatureSearchService {
     suspend fun search(deviceId: UUID, query: String, limit: Int, locale: String = "ru"): FeatureSearchResult
+
+    suspend fun classifyIntent(deviceId: UUID, query: String): FeatureSearchIntentResult
 }

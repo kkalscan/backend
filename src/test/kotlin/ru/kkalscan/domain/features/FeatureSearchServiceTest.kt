@@ -1,9 +1,12 @@
 package ru.kkalscan.domain.features
 
+import ru.kkalscan.domain.features.FeatureSearchCatalog
 import ru.kkalscan.domain.port.FeatureSearchItemRecord
 import ru.kkalscan.domain.service.FeatureSearchServiceImpl
 import ru.kkalscan.data.memory.InMemoryFeatureSearchRepository
 import ru.kkalscan.data.memory.InMemorySearchLogRepository
+import ru.kkalscan.data.memory.InMemoryVisionBudgetRepository
+import ru.kkalscan.integrations.StubVisionClient
 import kotlinx.coroutines.test.runTest
 import java.util.UUID
 import kotlin.test.Test
@@ -12,10 +15,16 @@ import kotlin.test.assertTrue
 
 class FeatureSearchServiceTest {
 
-    private val service = FeatureSearchServiceImpl(
+    private fun createService(
+        logs: InMemorySearchLogRepository = InMemorySearchLogRepository(),
+    ) = FeatureSearchServiceImpl(
         featureSearchRepository = InMemoryFeatureSearchRepository(),
-        searchLogRepository = InMemorySearchLogRepository(),
+        searchLogRepository = logs,
+        visionClient = StubVisionClient(),
+        visionBudgetRepository = InMemoryVisionBudgetRepository(),
     )
+
+    private val service = createService()
 
     @Test
     fun searchProfile_returnsProfileDeeplink() = runTest {
@@ -26,10 +35,7 @@ class FeatureSearchServiceTest {
     @Test
     fun emptyQuery_returnsEmpty() = runTest {
         val logs = InMemorySearchLogRepository()
-        val service = FeatureSearchServiceImpl(
-            featureSearchRepository = InMemoryFeatureSearchRepository(),
-            searchLogRepository = logs,
-        )
+        val service = createService(logs)
         val result = service.search(UUID.randomUUID(), "", limit = 5, locale = "ru")
         assertTrue(result.items.isEmpty())
         assertEquals(1, logs.all().size)
@@ -39,10 +45,7 @@ class FeatureSearchServiceTest {
     @Test
     fun unknownQuery_returnsPopularFallback() = runTest {
         val logs = InMemorySearchLogRepository()
-        val service = FeatureSearchServiceImpl(
-            featureSearchRepository = InMemoryFeatureSearchRepository(),
-            searchLogRepository = logs,
-        )
+        val service = createService(logs)
         val result = service.search(UUID.randomUUID(), "xyzunknown123", limit = 5, locale = "ru")
         assertTrue(result.items.isNotEmpty())
         assertTrue(result.popularFallback)
@@ -53,10 +56,7 @@ class FeatureSearchServiceTest {
     @Test
     fun searchProfile_logsQuery() = runTest {
         val logs = InMemorySearchLogRepository()
-        val service = FeatureSearchServiceImpl(
-            featureSearchRepository = InMemoryFeatureSearchRepository(),
-            searchLogRepository = logs,
-        )
+        val service = createService(logs)
         service.search(UUID.randomUUID(), "профиль", limit = 10, locale = "ru")
         assertEquals(1, logs.all().size)
         assertEquals("профиль", logs.all().first().queryNormalized)

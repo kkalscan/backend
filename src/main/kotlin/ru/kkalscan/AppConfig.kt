@@ -11,6 +11,7 @@ object AppConfig {
     val visionProvider: String = System.getenv("VISION_PROVIDER") ?: "stub"
     val visionMonthlyBudgetRub: Int = System.getenv("VISION_MONTHLY_BUDGET_RUB")?.toIntOrNull() ?: 5000
     val visionCostPerRequestRub: Int = System.getenv("VISION_COST_PER_REQUEST_RUB")?.toIntOrNull() ?: 1
+    val visionCostPerIntentRub: Int = System.getenv("VISION_COST_PER_INTENT_RUB")?.toIntOrNull() ?: 1
 
     val openRouterApiKey: String = System.getenv("OPENROUTER_API_KEY").orEmpty().trim()
     /** Must exist on https://openrouter.ai/models — `google/gemini-2.0-flash-001` was removed. */

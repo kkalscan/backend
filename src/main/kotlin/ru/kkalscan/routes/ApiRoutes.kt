@@ -10,6 +10,8 @@ import ru.kkalscan.AppConfig
 import ru.kkalscan.AppModule
 import ru.kkalscan.api.dto.HealthResponse
 import ru.kkalscan.api.dto.AuthTokenJson
+import ru.kkalscan.api.dto.FeatureSearchIntentRequest
+import ru.kkalscan.api.dto.FeatureSearchIntentResponse
 import ru.kkalscan.api.dto.FeatureSearchItemJson
 import ru.kkalscan.api.dto.FeatureSearchResponse
 import ru.kkalscan.api.dto.FoodSearchResponse
@@ -348,6 +350,18 @@ fun Application.configureRouting(module: AppModule) {
                         },
                         total = result.total,
                         popularFallback = result.popularFallback,
+                    ),
+                )
+            }
+
+            post("/feature-search/intent") {
+                val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
+                val body = call.receive<FeatureSearchIntentRequest>()
+                val result = module.featureSearchService.classifyIntent(deviceId, body.query)
+                call.respond(
+                    FeatureSearchIntentResponse(
+                        query = result.query,
+                        isFoodIntent = result.isFoodIntent,
                     ),
                 )
             }
