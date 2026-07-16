@@ -65,6 +65,16 @@ class StubVisionClient : VisionClient {
         return dishes
     }
 
+    override suspend fun classifySearchIntent(query: String): Boolean {
+        delay(STUB_LATENCY_MS)
+        val n = query.trim().lowercase()
+        if (n.length < 3) return false
+        val featureWords = setOf("профиль", "дневник", "скан", "бжу", "клетчатка", "подписка", "pro")
+        if (featureWords.any { n.contains(it) }) return false
+        // Heuristic for stub: Cyrillic word-ish → food; else false
+        return n.any { it in 'а'..'я' || it == 'ё' }
+    }
+
     override suspend fun analyzeWorkout(description: String): WorkoutParseResult {
         delay(STUB_LATENCY_MS)
         val normalized = description.trim().lowercase()

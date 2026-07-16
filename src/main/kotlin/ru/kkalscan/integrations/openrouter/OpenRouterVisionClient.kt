@@ -76,6 +76,32 @@ class OpenRouterVisionClient(
         return VisionResponseParser.parse(content)
     }
 
+    override suspend fun classifySearchIntent(query: String): Boolean {
+        val body = OpenRouterRequestBuilder.buildFeatureSearchIntent(model, query)
+        val responseText = try {
+            val response = httpClient.post("$baseUrl/chat/completions") {
+                header(HttpHeaders.Authorization, "Bearer $apiKey")
+                header("HTTP-Referer", appUrl)
+                header("X-Title", appName)
+                contentType(ContentType.Application.Json)
+                setBody(body.toString())
+            }
+            if (!response.status.isSuccess()) {
+                val errBody = response.bodyAsText()
+                val message = openRouterErrorMessage(response.status.value, errBody, model)
+                throw VisionUnavailableException(message, RuntimeException("OpenRouter HTTP ${response.status}: $errBody"))
+            }
+            response.bodyAsText()
+        } catch (e: VisionUnavailableException) {
+            throw e
+        } catch (e: Exception) {
+            throw VisionUnavailableException(cause = e)
+        }
+
+        val content = parseOpenRouterResponse(responseText, json)
+        return FeatureSearchIntentParser.parse(content)
+    }
+
     override suspend fun analyzeWorkout(description: String): WorkoutParseResult {
         val body = OpenRouterRequestBuilder.buildWorkoutText(model, description)
         val responseText = try {

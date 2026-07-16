@@ -432,6 +432,8 @@ interface VisionClient {
     suspend fun analyzeDescription(description: String): List<DishDto>
 
     suspend fun analyzeWorkout(description: String): WorkoutParseResult
+
+    suspend fun classifySearchIntent(query: String): Boolean
 }
 
 interface VkAuthClient {
