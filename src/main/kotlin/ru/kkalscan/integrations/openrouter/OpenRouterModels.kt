@@ -33,6 +33,17 @@ internal object FoodTextPrompt {
         "Описание пользователя:\n${description.trim()}"
 }
 
+internal object FeatureSearchIntentPrompt {
+    val SYSTEM = """
+        Ты классификатор запросов поиска в приложении подсчёта калорий.
+        Пользователь вводит строку в поиск функций приложения (дневник, профиль, скан…).
+        Верни ТОЛЬКО JSON: {"isFoodIntent":true} если человек ищет блюдо/продукт/еду чтобы записать калории,
+        или {"isFoodIntent":false} если это навигация по функциям приложения, опечатка, мусор или не еда.
+    """.trimIndent()
+
+    fun userMessage(query: String): String = "Запрос поиска:\n${query.trim()}"
+}
+
 internal object WorkoutTextPrompt {
     val SYSTEM = """
         Ты фитнес-помощник для приложения подсчёта калорий в России.
@@ -49,6 +60,9 @@ internal object WorkoutTextPrompt {
 
 @Serializable
 internal data class DishesEnvelope(val dishes: List<DishDto>)
+
+@Serializable
+internal data class FeatureSearchIntentEnvelope(val isFoodIntent: Boolean)
 
 @Serializable
 internal data class WorkoutParseEnvelope(
@@ -75,7 +89,7 @@ internal object VisionResponseParser {
         )
     }
 
-    private fun extractJsonPayload(raw: String): String {
+    internal fun extractJsonPayload(raw: String): String {
         val fenced = Regex("```(?:json)?\\s*([\\s\\S]*?)```", RegexOption.IGNORE_CASE)
             .find(raw)?.groupValues?.get(1)?.trim()
         if (!fenced.isNullOrBlank()) return fenced
@@ -85,6 +99,17 @@ internal object VisionResponseParser {
         if (start >= 0 && end > start) return raw.substring(start, end + 1)
 
         return raw
+    }
+}
+
+internal object FeatureSearchIntentParser {
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
+    fun parse(content: String): Boolean {
+        val payload = VisionResponseParser.extractJsonPayload(content.trim())
+        return runCatching {
+            json.decodeFromString<FeatureSearchIntentEnvelope>(payload).isFoodIntent
+        }.getOrDefault(false)
     }
 }
 
@@ -143,6 +168,27 @@ internal object OpenRouterRequestBuilder {
                     buildJsonObject {
                         put("role", JsonPrimitive("user"))
                         put("content", JsonPrimitive(FoodTextPrompt.userMessage(description)))
+                    },
+                )
+            },
+        )
+    }
+
+    fun buildFeatureSearchIntent(model: String, query: String): JsonObject = buildJsonObject {
+        put("model", JsonPrimitive(model))
+        put(
+            "messages",
+            buildJsonArray {
+                add(
+                    buildJsonObject {
+                        put("role", JsonPrimitive("system"))
+                        put("content", JsonPrimitive(FeatureSearchIntentPrompt.SYSTEM))
+                    },
+                )
+                add(
+                    buildJsonObject {
+                        put("role", JsonPrimitive("user"))
+                        put("content", JsonPrimitive(FeatureSearchIntentPrompt.userMessage(query)))
                     },
                 )
             },
