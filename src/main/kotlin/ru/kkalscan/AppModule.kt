@@ -5,10 +5,13 @@ import ru.kkalscan.data.sqlite.SqliteBugReportRepository
 import ru.kkalscan.data.sqlite.SqliteFeatureSearchRepository
 import ru.kkalscan.data.sqlite.SqliteSearchLogRepository
 import ru.kkalscan.data.sqlite.SqliteDailyActivityRepository
+import ru.kkalscan.data.sqlite.SqliteDevicePromoBindingRepository
 import ru.kkalscan.data.sqlite.SqliteDeviceRepository
 import ru.kkalscan.data.sqlite.SqliteDiaryRepository
 import ru.kkalscan.data.sqlite.SqlitePaymentRepository
+import ru.kkalscan.data.sqlite.SqlitePromoCodeRepository
 import ru.kkalscan.data.sqlite.SqlitePromoPurchaseRepository
+import ru.kkalscan.data.sqlite.SqliteScanQuotaRepository
 import ru.kkalscan.data.sqlite.SqliteWorkoutRepository
 import ru.kkalscan.domain.port.PromoPurchaseRepository
 import ru.kkalscan.domain.port.ActivityEmulatorService
@@ -17,6 +20,7 @@ import ru.kkalscan.domain.port.BugReportMailer
 import ru.kkalscan.domain.port.BugReportRepository
 import ru.kkalscan.domain.port.BugReportService
 import ru.kkalscan.domain.port.DailyActivityRepository
+import ru.kkalscan.domain.port.DevicePromoBindingRepository
 import ru.kkalscan.domain.port.DeviceRepository
 import ru.kkalscan.domain.port.DiaryRepository
 import ru.kkalscan.domain.port.DiaryService
@@ -29,7 +33,9 @@ import ru.kkalscan.domain.port.InsightService
 import ru.kkalscan.domain.port.PaymentRepository
 import ru.kkalscan.domain.port.PaymentService
 import ru.kkalscan.domain.port.PlainTextMailer
+import ru.kkalscan.domain.port.PromoCodeRepository
 import ru.kkalscan.domain.port.QuotaService
+import ru.kkalscan.domain.port.ScanQuotaRepository
 import ru.kkalscan.domain.port.ScanService
 import ru.kkalscan.domain.port.SubscriptionService
 import ru.kkalscan.domain.port.WorkoutRepository
@@ -94,6 +100,15 @@ data class AppModule(
     val paymentRepository: PaymentRepository =
         dataSource?.let { SqlitePaymentRepository(it) } ?: repos.payments
 
+    val scanQuotaRepository: ScanQuotaRepository =
+        dataSource?.let { SqliteScanQuotaRepository(it) } ?: repos.quotas
+
+    val promoCodeRepository: PromoCodeRepository =
+        dataSource?.let { SqlitePromoCodeRepository(it) } ?: repos.promoCodes
+
+    val devicePromoBindingRepository: DevicePromoBindingRepository =
+        dataSource?.let { SqliteDevicePromoBindingRepository(it) } ?: repos.devicePromoBindings
+
     val foodSearchService: FoodSearchService = FoodSearchServiceImpl(searchLogRepository)
 
     val featureSearchService: FeatureSearchService =
@@ -119,7 +134,7 @@ data class AppModule(
     }
     val jwtIssuer = JwtIssuer()
 
-    val quotaService: QuotaService = QuotaServiceImpl(repos.quotas, deviceRepository, repos.users)
+    val quotaService: QuotaService = QuotaServiceImpl(scanQuotaRepository, deviceRepository, repos.users)
 
     val identityResolver: IdentityResolver = IdentityResolverImpl(
         deviceRepository,
@@ -191,8 +206,8 @@ data class AppModule(
     }
 
     val promoService: PromoService = PromoService(
-        repos.promoCodes,
-        repos.devicePromoBindings,
+        promoCodeRepository,
+        devicePromoBindingRepository,
     )
 
     val paymentService: PaymentService = PaymentServiceImpl(
