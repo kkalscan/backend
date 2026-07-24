@@ -32,6 +32,8 @@ private class RecordingTochkaClient : TochkaClient {
         return StubTochkaClient().createPayment(amountKopecks, description, metadata)
     }
 
+    override suspend fun getPaymentStatus(operationId: String): TochkaClient.TochkaPaymentStatus? = null
+
     override fun parseWebhook(rawBody: String, signature: String?): TochkaClient.TochkaWebhookEvent? =
         StubTochkaClient().parseWebhook(rawBody, signature)
 }

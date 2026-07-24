@@ -7,9 +7,13 @@ import ru.kkalscan.domain.model.WorkoutParseResult
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import ru.kkalscan.domain.port.DietitianInsightResult
+import ru.kkalscan.domain.port.DietitianInsightSection
 import ru.kkalscan.domain.port.TochkaClient
 import ru.kkalscan.domain.port.VisionClient
 import ru.kkalscan.domain.port.VkAuthClient
+import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.absoluteValue
 
 /**
@@ -105,6 +109,23 @@ class StubVisionClient : VisionClient {
         )
     }
 
+    override suspend fun analyzeDietitianWeek(weekJson: String): DietitianInsightResult {
+        delay(STUB_LATENCY_MS)
+        return DietitianInsightResult(
+            headline = "Неделя выглядит сбалансированно",
+            sections = listOf(
+                DietitianInsightSection(
+                    title = "Калории",
+                    body = "По сводке недели средние калории в норме для повседневной активности.",
+                ),
+                DietitianInsightSection(
+                    title = "Что улучшить",
+                    body = "Добавьте ещё 1–2 дня с записями и разнообразьте белковые блюда.",
+                ),
+            ),
+        )
+    }
+
     private companion object {
         const val STUB_LATENCY_MS = 900L
     }
@@ -119,6 +140,8 @@ class StubVkAuthClient : VkAuthClient {
 }
 
 class StubTochkaClient : TochkaClient {
+    private val statuses = ConcurrentHashMap<String, TochkaClient.TochkaPaymentStatus>()
+
     override suspend fun createPayment(
         amountKopecks: Int,
         description: String,
@@ -126,10 +149,24 @@ class StubTochkaClient : TochkaClient {
     ): TochkaClient.TochkaPayment {
         val paymentLinkId = metadata["payment_link_id"]?.take(8) ?: "x"
         val id = "tochka_$paymentLinkId"
+        statuses[id] = TochkaClient.TochkaPaymentStatus(
+            operationId = id,
+            paymentLinkId = metadata["payment_link_id"],
+            status = "CREATED",
+            paidAt = null,
+        )
         return TochkaClient.TochkaPayment(
             id = id,
             paymentUrl = "https://pay.tochka.example/$id",
         )
+    }
+
+    override suspend fun getPaymentStatus(operationId: String): TochkaClient.TochkaPaymentStatus? =
+        statuses[operationId]
+
+    fun markApproved(operationId: String, paidAt: Instant = Instant.now()) {
+        val current = statuses[operationId] ?: return
+        statuses[operationId] = current.copy(status = "APPROVED", paidAt = paidAt)
     }
 
     override fun parseWebhook(rawBody: String, signature: String?): TochkaClient.TochkaWebhookEvent? {

@@ -164,6 +164,15 @@ interface PaymentService {
 
     suspend fun handleTochkaWebhook(rawBody: String, signature: String?)
 
+    /** Poll Tochka for pending payments of this device and activate Pro if APPROVED. */
+    suspend fun syncPendingPayments(deviceId: UUID): ProSubscriptionStartResult
+
+    /**
+     * Poll Tochka for all pending payments (backend-driven, no client required).
+     * @return number of payments activated as Pro
+     */
+    suspend fun syncAllPendingPayments(): Int
+
     suspend fun activateTestPayment(deviceId: UUID, secret: String): TestPaymentResult
 
     suspend fun renderPayPage(deviceId: UUID): String
@@ -350,6 +359,8 @@ interface DiaryRepository {
     suspend fun deleteEntry(id: UUID)
 
     suspend fun findEntry(id: UUID): DiaryEntryRecord?
+
+    suspend fun updateUserIdForDevice(deviceId: UUID, userId: UUID)
 }
 
 interface WorkoutRepository {
@@ -418,6 +429,10 @@ interface PaymentRepository {
     suspend fun findById(id: UUID): PaymentRecord?
 
     suspend fun findByTochkaId(tochkaPaymentId: String): PaymentRecord?
+
+    suspend fun findPendingByDevice(deviceId: UUID): List<PaymentRecord>
+
+    suspend fun findAllPending(): List<PaymentRecord>
 }
 
 interface VisionBudgetRepository {
@@ -434,7 +449,36 @@ interface VisionClient {
     suspend fun analyzeWorkout(description: String): WorkoutParseResult
 
     suspend fun classifySearchIntent(query: String): Boolean
+
+    suspend fun analyzeDietitianWeek(weekJson: String): DietitianInsightResult
 }
+
+data class DietitianInsightResult(
+    val headline: String,
+    val sections: List<DietitianInsightSection>,
+)
+
+data class DietitianInsightSection(
+    val title: String,
+    val body: String,
+)
+
+interface InsightService {
+    suspend fun dietitianInsight(
+        actor: Actor,
+        weekStart: LocalDate,
+        timezoneOffsetMinutes: Int,
+    ): DietitianInsightResponse
+}
+
+data class DietitianInsightResponse(
+    val weekStart: String,
+    val generatedAt: String,
+    val headline: String,
+    val sections: List<DietitianInsightSection>,
+    val disclaimer: String =
+        "Не является медицинской рекомендацией. Обратитесь к врачу при необходимости.",
+)
 
 interface VkAuthClient {
     suspend fun verifyToken(accessToken: String): VkUser
@@ -449,9 +493,18 @@ interface TochkaClient {
         metadata: Map<String, String>,
     ): TochkaPayment
 
+    suspend fun getPaymentStatus(operationId: String): TochkaPaymentStatus?
+
     fun parseWebhook(rawBody: String, signature: String?): TochkaWebhookEvent?
 
     data class TochkaPayment(val id: String, val paymentUrl: String)
+
+    data class TochkaPaymentStatus(
+        val operationId: String,
+        val paymentLinkId: String?,
+        val status: String,
+        val paidAt: Instant?,
+    )
 
     data class TochkaWebhookEvent(
         val operationId: String?,

@@ -146,7 +146,7 @@ class InMemoryDiaryRepository : DiaryRepository {
 
     override suspend fun findEntry(id: UUID): DiaryEntryRecord? = entries[id]
 
-    suspend fun updateUserIdForDevice(deviceId: UUID, userId: UUID) {
+    override suspend fun updateUserIdForDevice(deviceId: UUID, userId: UUID) {
         entries.values.filter { it.deviceId == deviceId }.forEach { entry ->
             entries[entry.id] = entry.copy(userId = userId)
         }
@@ -269,6 +269,12 @@ class InMemoryPaymentRepository : PaymentRepository {
         byTochkaId[tochkaPaymentId]?.let { payments[it] }
 
     override suspend fun findById(id: UUID): PaymentRecord? = payments[id]
+
+    override suspend fun findPendingByDevice(deviceId: UUID): List<PaymentRecord> =
+        payments.values.filter { it.deviceId == deviceId && it.status == "pending" }
+
+    override suspend fun findAllPending(): List<PaymentRecord> =
+        payments.values.filter { it.status == "pending" }
 }
 
 class InMemoryPromoPurchaseRepository : PromoPurchaseRepository {

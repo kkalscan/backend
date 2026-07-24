@@ -58,6 +58,20 @@ internal object WorkoutTextPrompt {
         "Описание тренировки:\n${description.trim()}"
 }
 
+internal object DietitianWeekPrompt {
+    val SYSTEM = """
+        Ты диетолог-помощник для приложения подсчёта калорий в России.
+        По сводке недели пользователя дай краткий дружелюбный разбор на русском.
+        Не ставь диагнозов и не назначай лечение. Без морализаторства.
+        Верни ТОЛЬКО JSON без markdown:
+        {"headline":"одна короткая фраза","sections":[{"title":"...","body":"..."}]}
+        Ровно 2–4 секции. Каждая секция: конкретный вывод по данным недели (ккал, БЖУ, блюда, активность).
+    """.trimIndent()
+
+    fun userMessage(weekJson: String): String =
+        "Сводка недели (JSON):\n${weekJson.trim()}"
+}
+
 @Serializable
 internal data class DishesEnvelope(val dishes: List<DishDto>)
 
@@ -69,6 +83,18 @@ internal data class WorkoutParseEnvelope(
     val title: String,
     val burned_kcal: Int,
     val duration_minutes: Int? = null,
+)
+
+@Serializable
+internal data class DietitianInsightEnvelope(
+    val headline: String,
+    val sections: List<DietitianSectionEnvelope> = emptyList(),
+)
+
+@Serializable
+internal data class DietitianSectionEnvelope(
+    val title: String,
+    val body: String,
 )
 
 internal object VisionResponseParser {
@@ -86,6 +112,27 @@ internal object VisionResponseParser {
             title = envelope.title.trim(),
             burnedKcal = envelope.burned_kcal,
             durationMinutes = envelope.duration_minutes,
+        )
+    }
+
+    fun parseDietitianInsight(content: String): ru.kkalscan.domain.port.DietitianInsightResult {
+        val payload = extractJsonPayload(content.trim())
+        val envelope = json.decodeFromString<DietitianInsightEnvelope>(payload)
+        val sections = envelope.sections
+            .map {
+                ru.kkalscan.domain.port.DietitianInsightSection(
+                    title = it.title.trim(),
+                    body = it.body.trim(),
+                )
+            }
+            .filter { it.title.isNotBlank() && it.body.isNotBlank() }
+            .take(4)
+        require(envelope.headline.isNotBlank() && sections.size in 2..4) {
+            "Invalid dietitian insight JSON"
+        }
+        return ru.kkalscan.domain.port.DietitianInsightResult(
+            headline = envelope.headline.trim(),
+            sections = sections,
         )
     }
 
@@ -210,6 +257,27 @@ internal object OpenRouterRequestBuilder {
                     buildJsonObject {
                         put("role", JsonPrimitive("user"))
                         put("content", JsonPrimitive(WorkoutTextPrompt.userMessage(description)))
+                    },
+                )
+            },
+        )
+    }
+
+    fun buildDietitianWeek(model: String, weekJson: String): JsonObject = buildJsonObject {
+        put("model", JsonPrimitive(model))
+        put(
+            "messages",
+            buildJsonArray {
+                add(
+                    buildJsonObject {
+                        put("role", JsonPrimitive("system"))
+                        put("content", JsonPrimitive(DietitianWeekPrompt.SYSTEM))
+                    },
+                )
+                add(
+                    buildJsonObject {
+                        put("role", JsonPrimitive("user"))
+                        put("content", JsonPrimitive(DietitianWeekPrompt.userMessage(weekJson)))
                     },
                 )
             },

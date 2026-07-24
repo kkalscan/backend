@@ -10,6 +10,7 @@ package ru.kkalscan.routes
  * | POST | /api/v1/scan/text | ScanRoutes.postScanText |
  * | POST | /api/v1/scan/bonus | ScanRoutes.postBonus |
  * | POST | /api/v1/feature-search/intent | ApiRoutes.postFeatureSearchIntent |
+ * | POST | /api/v1/insights/dietitian | ApiRoutes.postDietitianInsight |
  * | GET | /api/v1/diary | DiaryRoutes.getDiary |
  * | GET | /api/v1/activity/emulator | ApiRoutes activity emulator |
  * | POST | /api/v1/diary/entries | DiaryRoutes.postEntry |

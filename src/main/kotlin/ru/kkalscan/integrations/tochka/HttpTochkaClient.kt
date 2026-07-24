@@ -7,6 +7,7 @@ import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory
 import ru.kkalscan.AppConfig
 import ru.kkalscan.domain.BadRequestException
 import ru.kkalscan.domain.port.TochkaClient
+import java.time.Instant
 
 class HttpTochkaClient(
     private val httpClient: HttpClient,
@@ -77,6 +79,41 @@ class HttpTochkaClient(
 
         log.info("Tochka payment created: operationId={} paymentLinkId={}", operationId, paymentLinkId)
         return TochkaClient.TochkaPayment(id = operationId, paymentUrl = paymentUrl)
+    }
+
+    override suspend fun getPaymentStatus(operationId: String): TochkaClient.TochkaPaymentStatus? {
+        val response = httpClient.get("$apiBaseUrl/uapi/acquiring/v1.0/payments/$operationId") {
+            header(HttpHeaders.Authorization, "Bearer $accessToken")
+            header(HttpHeaders.Accept, "application/json")
+        }
+        val body = response.bodyAsText()
+        if (!response.status.isSuccess()) {
+            log.warn("Tochka get payment failed: HTTP {} {}", response.status.value, body.take(500))
+            return null
+        }
+        val operation = json.parseToJsonElement(body).jsonObject["Data"]?.jsonObject
+            ?.get("Operation")
+            ?.let { el ->
+                when (el) {
+                    is JsonArray -> el.firstOrNull()?.jsonObject
+                    else -> el.jsonObject
+                }
+            }
+            ?: return null
+        val status = operation.stringField("status") ?: return null
+        val paidAt = operation.stringField("paidAt")?.let { raw ->
+            runCatching { Instant.parse(raw) }.getOrElse {
+                runCatching {
+                    java.time.OffsetDateTime.parse(raw).toInstant()
+                }.getOrNull()
+            }
+        }
+        return TochkaClient.TochkaPaymentStatus(
+            operationId = operation.stringField("operationId") ?: operationId,
+            paymentLinkId = operation.stringField("paymentLinkId"),
+            status = status,
+            paidAt = paidAt,
+        )
     }
 
     override fun parseWebhook(rawBody: String, signature: String?): TochkaClient.TochkaWebhookEvent? =

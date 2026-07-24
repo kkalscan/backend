@@ -5,6 +5,9 @@ import ru.kkalscan.data.sqlite.SqliteBugReportRepository
 import ru.kkalscan.data.sqlite.SqliteFeatureSearchRepository
 import ru.kkalscan.data.sqlite.SqliteSearchLogRepository
 import ru.kkalscan.data.sqlite.SqliteDailyActivityRepository
+import ru.kkalscan.data.sqlite.SqliteDeviceRepository
+import ru.kkalscan.data.sqlite.SqliteDiaryRepository
+import ru.kkalscan.data.sqlite.SqlitePaymentRepository
 import ru.kkalscan.data.sqlite.SqlitePromoPurchaseRepository
 import ru.kkalscan.data.sqlite.SqliteWorkoutRepository
 import ru.kkalscan.domain.port.PromoPurchaseRepository
@@ -14,12 +17,16 @@ import ru.kkalscan.domain.port.BugReportMailer
 import ru.kkalscan.domain.port.BugReportRepository
 import ru.kkalscan.domain.port.BugReportService
 import ru.kkalscan.domain.port.DailyActivityRepository
+import ru.kkalscan.domain.port.DeviceRepository
+import ru.kkalscan.domain.port.DiaryRepository
 import ru.kkalscan.domain.port.DiaryService
 import ru.kkalscan.domain.port.FeatureSearchRepository
 import ru.kkalscan.domain.port.FeatureSearchService
 import ru.kkalscan.domain.port.FoodSearchService
 import ru.kkalscan.domain.port.SearchLogRepository
 import ru.kkalscan.domain.port.IdentityResolver
+import ru.kkalscan.domain.port.InsightService
+import ru.kkalscan.domain.port.PaymentRepository
 import ru.kkalscan.domain.port.PaymentService
 import ru.kkalscan.domain.port.PlainTextMailer
 import ru.kkalscan.domain.port.QuotaService
@@ -34,6 +41,7 @@ import ru.kkalscan.domain.service.DiaryServiceImpl
 import ru.kkalscan.domain.service.FeatureSearchServiceImpl
 import ru.kkalscan.domain.service.FoodSearchServiceImpl
 import ru.kkalscan.domain.service.IdentityResolverImpl
+import ru.kkalscan.domain.service.InsightServiceImpl
 import ru.kkalscan.domain.service.JwtIssuer
 import ru.kkalscan.domain.service.PaymentServiceImpl
 import ru.kkalscan.domain.service.PromoService
@@ -71,11 +79,20 @@ data class AppModule(
     val workoutRepository: WorkoutRepository =
         dataSource?.let { SqliteWorkoutRepository(it) } ?: repos.workouts
 
+    val diaryRepository: DiaryRepository =
+        dataSource?.let { SqliteDiaryRepository(it) } ?: repos.diary
+
     val dailyActivityRepository: DailyActivityRepository =
         dataSource?.let { SqliteDailyActivityRepository(it) } ?: repos.dailyActivity
 
     val promoPurchaseRepository: PromoPurchaseRepository =
         dataSource?.let { SqlitePromoPurchaseRepository(it) } ?: repos.promoPurchases
+
+    val deviceRepository: DeviceRepository =
+        dataSource?.let { SqliteDeviceRepository(it) } ?: repos.devices
+
+    val paymentRepository: PaymentRepository =
+        dataSource?.let { SqlitePaymentRepository(it) } ?: repos.payments
 
     val foodSearchService: FoodSearchService = FoodSearchServiceImpl(searchLogRepository)
 
@@ -102,10 +119,10 @@ data class AppModule(
     }
     val jwtIssuer = JwtIssuer()
 
-    val quotaService: QuotaService = QuotaServiceImpl(repos.quotas, repos.devices, repos.users)
+    val quotaService: QuotaService = QuotaServiceImpl(repos.quotas, deviceRepository, repos.users)
 
     val identityResolver: IdentityResolver = IdentityResolverImpl(
-        repos.devices,
+        deviceRepository,
         repos.users,
         repos.oauth,
     )
@@ -118,7 +135,7 @@ data class AppModule(
     )
 
     val diaryService: DiaryService = DiaryServiceImpl(
-        repos.diary,
+        diaryRepository,
         workoutRepository,
         dailyActivityRepository,
         quotaService,
@@ -127,18 +144,25 @@ data class AppModule(
         repos.visionBudget,
     )
 
+    val insightService: InsightService = InsightServiceImpl(
+        diaryRepository,
+        workoutRepository,
+        visionClient,
+        repos.visionBudget,
+    )
+
     val activityEmulatorService: ActivityEmulatorService =
         ActivityEmulatorServiceImpl(workoutRepository, dailyActivityRepository)
 
     val subscriptionService: SubscriptionService = SubscriptionServiceImpl(
-        repos.devices,
+        deviceRepository,
         repos.users,
     )
 
     val accountMergeService = AccountMergeServiceImpl(
-        repos.devices,
+        deviceRepository,
         repos.users,
-        repos.diary,
+        diaryRepository,
         workoutRepository,
         dailyActivityRepository,
     )
@@ -147,7 +171,7 @@ data class AppModule(
         vkAuthClient,
         repos.oauth,
         repos.users,
-        repos.devices,
+        deviceRepository,
         accountMergeService,
         subscriptionService,
         jwtIssuer,
@@ -172,8 +196,8 @@ data class AppModule(
     )
 
     val paymentService: PaymentService = PaymentServiceImpl(
-        repos.payments,
-        repos.devices,
+        paymentRepository,
+        deviceRepository,
         subscriptionService,
         tochkaClient,
         plainTextMailer,

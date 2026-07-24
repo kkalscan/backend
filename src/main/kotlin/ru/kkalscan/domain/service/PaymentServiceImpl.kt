@@ -1,5 +1,6 @@
 package ru.kkalscan.domain.service
 
+import org.slf4j.LoggerFactory
 import ru.kkalscan.AppConfig
 import ru.kkalscan.domain.BadRequestException
 import ru.kkalscan.domain.ForbiddenException
@@ -32,6 +33,8 @@ class PaymentServiceImpl(
     private val freeProActivationEnabled: Boolean = AppConfig.freeProActivationEnabled,
     private val publicBaseUrl: String = AppConfig.publicBaseUrl,
 ) : PaymentService {
+
+    private val log = LoggerFactory.getLogger(PaymentServiceImpl::class.java)
 
     override suspend fun startProSubscription(deviceId: UUID, tariff: String): PaymentService.ProSubscriptionStartResult {
         deviceRepository.getOrCreate(deviceId)
@@ -231,16 +234,30 @@ class PaymentServiceImpl(
         val event = tochkaClient.parseWebhook(rawBody, signature)
             ?: throw BadRequestException("Invalid webhook")
 
-        if (event.webhookType != null && event.webhookType != "acquiringInternetPayment") return
+        if (event.webhookType != null && event.webhookType != "acquiringInternetPayment") {
+            log.info("Tochka webhook ignored type={}", event.webhookType)
+            return
+        }
 
         val status = event.status.uppercase()
-        if (status != "PAID" && status != "SUCCESS" && status != "APPROVED") return
+        if (status != "PAID" && status != "SUCCESS" && status != "APPROVED") {
+            log.info("Tochka webhook ignored status={} operationId={}", status, event.operationId)
+            return
+        }
 
         val payment = event.paymentLinkId
             ?.let { runCatching { UUID.fromString(it) }.getOrNull() }
             ?.let { paymentRepository.findById(it) }
             ?: event.operationId?.let { paymentRepository.findByTochkaId(it) }
-            ?: return
+
+        if (payment == null) {
+            log.warn(
+                "Tochka webhook payment not found paymentLinkId={} operationId={}",
+                event.paymentLinkId,
+                event.operationId,
+            )
+            return
+        }
 
         if (payment.status == "paid") return
 
@@ -259,6 +276,76 @@ class PaymentServiceImpl(
             paidAt = paidAt,
         )
         subscriptionService.activatePro(payment.deviceId, payment.tariff, paidAt)
+        log.info(
+            "Tochka webhook activated Pro device={} paymentId={} operationId={}",
+            payment.deviceId.toString().take(8),
+            payment.id,
+            tochkaId,
+        )
+    }
+
+    override suspend fun syncPendingPayments(deviceId: UUID): PaymentService.ProSubscriptionStartResult {
+        deviceRepository.getOrCreate(deviceId)
+        for (payment in paymentRepository.findPendingByDevice(deviceId)) {
+            activateIfTochkaPaid(payment)
+        }
+
+        val status = subscriptionService.getStatus(
+            Actor(
+                deviceId = deviceId,
+                userId = deviceRepository.findById(deviceId)?.userId,
+                isPro = true,
+                accountLinked = false,
+                linkedProviders = emptyList(),
+            ),
+        )
+        return PaymentService.ProSubscriptionStartResult(
+            isPro = status.isPro,
+            proUntil = status.proUntil,
+            tariff = status.tariff ?: TariffCatalog.MONTHLY_ID,
+            paymentRequired = !status.isPro,
+            message = if (status.isPro) "Pro активен" else "Ожидаем оплату",
+        )
+    }
+
+    override suspend fun syncAllPendingPayments(): Int {
+        var activated = 0
+        for (payment in paymentRepository.findAllPending()) {
+            if (activateIfTochkaPaid(payment)) activated++
+        }
+        if (activated > 0) {
+            log.info("Tochka syncAll activated {} payment(s)", activated)
+        }
+        return activated
+    }
+
+    private suspend fun activateIfTochkaPaid(payment: PaymentRecord): Boolean {
+        val tochkaId = payment.tochkaPaymentId ?: return false
+        val remote = tochkaClient.getPaymentStatus(tochkaId) ?: return false
+        val status = remote.status.uppercase()
+        if (status != "PAID" && status != "SUCCESS" && status != "APPROVED") return false
+
+        val paidAt = remote.paidAt ?: Instant.now()
+        paymentRepository.markPaid(payment.id, tochkaId, paidAt)
+        recordPromoPurchase(
+            paymentId = payment.id,
+            deviceId = payment.deviceId,
+            tariff = payment.tariff,
+            amountKopecks = payment.amountKopecks,
+            listAmountKopecks = payment.listAmountKopecks.takeIf { it > 0 } ?: payment.amountKopecks,
+            promoCode = payment.promoCode,
+            discountPercent = payment.discountPercent,
+            status = "paid",
+            paidAt = paidAt,
+        )
+        subscriptionService.activatePro(payment.deviceId, payment.tariff, paidAt)
+        log.info(
+            "Tochka sync activated Pro device={} paymentId={} operationId={}",
+            payment.deviceId.toString().take(8),
+            payment.id,
+            tochkaId,
+        )
+        return true
     }
 
     override suspend fun renderPayPage(deviceId: UUID): String {

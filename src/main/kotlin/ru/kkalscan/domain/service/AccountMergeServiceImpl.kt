@@ -1,6 +1,5 @@
 package ru.kkalscan.domain.service
 
-import ru.kkalscan.data.memory.InMemoryDiaryRepository
 import ru.kkalscan.domain.port.AccountMergeService
 import ru.kkalscan.domain.port.DailyActivityRepository
 import ru.kkalscan.domain.port.DeviceRepository
@@ -33,9 +32,7 @@ class AccountMergeServiceImpl(
         deviceRepository.linkToUser(deviceId, userId)
         deviceRepository.setProUntil(deviceId, null)
 
-        if (diaryRepository is InMemoryDiaryRepository) {
-            diaryRepository.updateUserIdForDevice(deviceId, userId)
-        }
+        diaryRepository.updateUserIdForDevice(deviceId, userId)
         workoutRepository.updateUserIdForDevice(deviceId, userId)
         dailyActivityRepository.updateUserIdForDevice(deviceId, userId)
     }

@@ -10,6 +10,9 @@ import ru.kkalscan.AppConfig
 import ru.kkalscan.AppModule
 import ru.kkalscan.api.dto.HealthResponse
 import ru.kkalscan.api.dto.AuthTokenJson
+import ru.kkalscan.api.dto.DietitianInsightRequest
+import ru.kkalscan.api.dto.DietitianInsightResponseJson
+import ru.kkalscan.api.dto.DietitianInsightSectionJson
 import ru.kkalscan.api.dto.FeatureSearchIntentRequest
 import ru.kkalscan.api.dto.FeatureSearchIntentResponse
 import ru.kkalscan.api.dto.FeatureSearchItemJson
@@ -372,6 +375,30 @@ fun Application.configureRouting(module: AppModule) {
                     FeatureSearchIntentResponse(
                         query = result.query,
                         isFoodIntent = result.isFoodIntent,
+                    ),
+                )
+            }
+
+            post("/insights/dietitian") {
+                val body = call.receive<DietitianInsightRequest>()
+                val deviceId = parseUuid(body.device_id, "device_id")
+                val weekStart = runCatching { LocalDate.parse(body.week_start) }
+                    .getOrElse { throw BadRequestException("week_start должен быть YYYY-MM-DD") }
+                val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
+                val result = module.insightService.dietitianInsight(
+                    actor,
+                    weekStart,
+                    body.timezone_offset_minutes,
+                )
+                call.respond(
+                    DietitianInsightResponseJson(
+                        week_start = result.weekStart,
+                        generated_at = result.generatedAt,
+                        headline = result.headline,
+                        sections = result.sections.map {
+                            DietitianInsightSectionJson(title = it.title, body = it.body)
+                        },
+                        disclaimer = result.disclaimer,
                     ),
                 )
             }

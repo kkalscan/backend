@@ -279,6 +279,28 @@ data class FeatureSearchIntentResponse(
 )
 
 @Serializable
+data class DietitianInsightRequest(
+    val device_id: String,
+    val week_start: String,
+    val timezone_offset_minutes: Int = 180,
+)
+
+@Serializable
+data class DietitianInsightSectionJson(
+    val title: String,
+    val body: String,
+)
+
+@Serializable
+data class DietitianInsightResponseJson(
+    val week_start: String,
+    val generated_at: String,
+    val headline: String,
+    val sections: List<DietitianInsightSectionJson>,
+    val disclaimer: String,
+)
+
+@Serializable
 data class FoodSearchResponse(
     val query: String,
     val items: List<DishDto>,

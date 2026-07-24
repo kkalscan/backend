@@ -53,6 +53,13 @@ object AppConfig {
 
     val tochkaConfigured: Boolean get() = tochkaAccessToken.isNotBlank()
 
+    /**
+     * How often the backend polls Tochka for pending payments (no webhook without HTTPS domain).
+     * Set PAYMENT_SYNC_INTERVAL_SECONDS=0 to disable the worker.
+     */
+    val paymentSyncIntervalSeconds: Long =
+        System.getenv("PAYMENT_SYNC_INTERVAL_SECONDS")?.toLongOrNull()?.coerceAtLeast(0) ?: 30L
+
     /** Shared secret for POST /api/v1/payments/test/activate (falls back to JWT_SECRET). */
     val testPaymentSecret: String = System.getenv("TEST_PAYMENT_SECRET").orEmpty().trim()
         .ifBlank { jwtSecret }
