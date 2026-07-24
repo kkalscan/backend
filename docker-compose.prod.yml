@@ -10,6 +10,8 @@ services:
       - "8080:8080"
     volumes:
       - kkalscan-data:/data
+    environment:
+      LOG_DIR: /data/logs
     env_file:
       - .env
 
