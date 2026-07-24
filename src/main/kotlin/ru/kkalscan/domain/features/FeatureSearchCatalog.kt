@@ -12,8 +12,7 @@ object FeatureSearchCatalog {
     val items: List<FeatureSearchItemRecord> = listOf(
         FeatureSearchItemRecord("diary_today", "Сегодня", "Дневник питания и калории за день", "сегодня,дневник,калории,ккал,день,съедено,питание", "kkalscan://diary", "today", 10),
         FeatureSearchItemRecord("scan", "Сканировать еду", "Калории и БЖУ по фото", "скан,фото,камера,распознать,добавить,еда,сфотографировать", "kkalscan://scan", "scan", 5),
-        FeatureSearchItemRecord("describe_food", "Описать еду", "Текстом — без выбора из базы продуктов", "описать,текст,написать,сказать,без фото,без базы,рассказать", "kkalscan://describe-food", "edit", 8),
-        FeatureSearchItemRecord("food_search", "Найти продукт", "Добавить блюдо из каталога", "продукт,каталог,найти,добавить еду", "kkalscan://food-search", "search", 15),
+        FeatureSearchItemRecord("describe_food", "Описать еду", "Добавить блюдо текстом", "описать,текст,написать,сказать,без фото,рассказать,продукт,найти,добавить еду", "kkalscan://describe-food", "edit", 8),
         FeatureSearchItemRecord("journal", "Дневник за неделю", "Графики калорий и БЖУ", "дневник,неделя,график,статистика,калории,прогресс,журнал", "kkalscan://journal", "journal", 20),
         FeatureSearchItemRecord("fiber", "Клетчатка", "График клетчатки за неделю", "клетчатка,график,кл,волокна,клетчатки", "kkalscan://journal/fiber", "fiber", 25),
         FeatureSearchItemRecord("profile", "Профиль", "Подписка Pro и настройки", "профиль,настройки,pro,подписка,аккаунт,личный", "kkalscan://profile", "profile", 30),

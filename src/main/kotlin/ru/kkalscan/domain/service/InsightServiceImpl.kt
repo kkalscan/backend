@@ -49,16 +49,20 @@ class InsightServiceImpl(
             val protein = entries.sumOf { e -> e.dishes.sumOf { it.protein } }
             val fat = entries.sumOf { e -> e.dishes.sumOf { it.fat } }
             val carbs = entries.sumOf { e -> e.dishes.sumOf { it.carbs } }
+            val fiber = entries.sumOf { e -> e.dishes.sumOf { it.fiber } }
             val burned = workouts.sumOf { it.kcal }
             val dishNames = entries.flatMap { it.dishes.map { d -> d.name } }.distinct().take(5)
+            val workoutItems = workouts.take(5).map { WorkoutAgg(name = it.name, kcal = it.kcal) }
             DayAgg(
                 date = date,
                 kcal = kcal,
                 protein = protein,
                 fat = fat,
                 carbs = carbs,
+                fiber = fiber,
                 burned = burned,
                 dishNames = dishNames,
+                workouts = workoutItems,
                 hasData = entries.isNotEmpty() || workouts.isNotEmpty(),
             )
         }
@@ -100,13 +104,22 @@ class InsightServiceImpl(
     }
 
     private fun buildWeekJson(weekStart: LocalDate, days: List<DayAgg>, daysWithData: Int): String {
-        val avgKcal = days.filter { it.hasData }.map { it.kcal }.average().let {
-            if (it.isNaN()) 0 else it.toInt()
-        }
+        val withData = days.filter { it.hasData }
+        fun avgInt(selector: (DayAgg) -> Int): Int =
+            withData.map(selector).average().let { if (it.isNaN()) 0 else it.toInt() }
+        fun avgDouble(selector: (DayAgg) -> Double): Double =
+            withData.map(selector).average().let { if (it.isNaN()) 0.0 else (it * 10).toInt() / 10.0 }
+
         val obj = buildJsonObject {
             put("week_start", weekStart.toString())
             put("days_with_data", daysWithData)
-            put("avg_kcal", avgKcal)
+            put("avg_kcal", avgInt { it.kcal })
+            put("avg_protein_g", avgDouble { it.protein })
+            put("avg_fat_g", avgDouble { it.fat })
+            put("avg_carbs_g", avgDouble { it.carbs })
+            put("avg_fiber_g", avgDouble { it.fiber })
+            put("avg_burned_kcal", avgInt { it.burned })
+            put("workouts_count", days.sumOf { it.workouts.size })
             put(
                 "days",
                 buildJsonArray {
@@ -115,14 +128,28 @@ class InsightServiceImpl(
                             buildJsonObject {
                                 put("date", d.date.toString())
                                 put("kcal", d.kcal)
-                                put("protein", d.protein)
-                                put("fat", d.fat)
-                                put("carbs", d.carbs)
+                                put("protein_g", d.protein)
+                                put("fat_g", d.fat)
+                                put("carbs_g", d.carbs)
+                                put("fiber_g", d.fiber)
                                 put("burned_kcal", d.burned)
                                 put(
                                     "dishes",
                                     buildJsonArray {
                                         d.dishNames.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                                    },
+                                )
+                                put(
+                                    "workouts",
+                                    buildJsonArray {
+                                        for (w in d.workouts) {
+                                            add(
+                                                buildJsonObject {
+                                                    put("name", w.name)
+                                                    put("kcal", w.kcal)
+                                                },
+                                            )
+                                        }
                                     },
                                 )
                             },
@@ -134,14 +161,21 @@ class InsightServiceImpl(
         return json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), obj)
     }
 
+    private data class WorkoutAgg(
+        val name: String,
+        val kcal: Int,
+    )
+
     private data class DayAgg(
         val date: LocalDate,
         val kcal: Int,
         val protein: Double,
         val fat: Double,
         val carbs: Double,
+        val fiber: Double,
         val burned: Int,
         val dishNames: List<String>,
+        val workouts: List<WorkoutAgg>,
         val hasData: Boolean,
     )
 
