@@ -227,13 +227,14 @@ fun Application.configureRouting(module: AppModule) {
 
             get("/subscription/status") {
                 val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
+                module.paymentService.syncPendingPayments(deviceId)
                 val actor = module.identityResolver.resolve(deviceId, call.request.headers["Authorization"])
                 call.respond(module.subscriptionService.getStatus(actor).toJson())
             }
 
             get("/subscription/offers") {
                 val deviceId = call.parseDeviceId() ?: throw BadRequestException("device_id обязателен")
-                module.repos.devices.getOrCreate(deviceId)
+                module.deviceRepository.getOrCreate(deviceId)
                 val offers = module.promoService.listOffers(deviceId).map { offer ->
                     SubscriptionOfferJson(
                         tariff = offer.tariff,
@@ -251,7 +252,7 @@ fun Application.configureRouting(module: AppModule) {
             post("/promo/apply") {
                 val body = call.receive<PromoApplyRequest>()
                 val deviceId = parseUuid(body.device_id, "device_id")
-                module.repos.devices.getOrCreate(deviceId)
+                module.deviceRepository.getOrCreate(deviceId)
                 val result = module.promoService.applyPromo(deviceId, body.promo_code)
                 call.respond(
                     PromoApplyResponse(
@@ -309,9 +310,18 @@ fun Application.configureRouting(module: AppModule) {
             }
 
             post("/payments/tochka/webhook") {
+                // Tochka requires HTTP 200 on accessibility test and retries; never fail the delivery ACK.
                 val raw = call.receiveText()
                 val signature = call.request.headers["X-Signature"]
-                module.paymentService.handleTochkaWebhook(raw, signature)
+                runCatching {
+                    module.paymentService.handleTochkaWebhook(raw, signature)
+                }.onFailure { error ->
+                    call.application.environment.log.warn(
+                        "Tochka webhook not applied: {} bodyPrefix={}",
+                        error.message,
+                        raw.take(80),
+                    )
+                }
                 call.respond(WebhookAck())
             }
 

@@ -20,14 +20,16 @@ object TochkaWebhookVerifier {
     private val publicKey: RSAPublicKey by lazy { loadTochkaPublicKey() }
 
     fun parseWebhook(rawBody: String): TochkaClient.TochkaWebhookEvent? {
-        val trimmed = rawBody.trim()
+        val trimmed = rawBody.trim().removeSurrounding("\"")
         if (!trimmed.startsWith("eyJ")) return null
 
         return runCatching {
             val algorithm = Algorithm.RSA256(publicKey, null)
-            val verifier = JWT.require(algorithm).build()
+            val verifier = JWT.require(algorithm).acceptLeeway(60).build()
             val decoded = verifier.verify(trimmed)
-            val payload = json.parseToJsonElement(decoded.payload).jsonObject
+            // java-jwt getPayload() returns Base64URL, not decoded JSON
+            val payloadJson = String(Base64.getUrlDecoder().decode(decoded.payload), Charsets.UTF_8)
+            val payload = json.parseToJsonElement(payloadJson).jsonObject
             payload.toWebhookEvent()
         }.getOrNull()
     }
