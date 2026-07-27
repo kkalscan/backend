@@ -1,13 +1,23 @@
 package ru.kkalscan.integrations.openrouter
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.jsonPrimitive
 import ru.kkalscan.domain.model.DishDto
 import ru.kkalscan.domain.model.WorkoutParseResult
+import kotlin.math.roundToInt
 
 internal object FoodVisionPrompt {
     val TEXT = """
@@ -75,8 +85,37 @@ internal object DietitianWeekPrompt {
         "Сводка недели (JSON):\n${weekJson.trim()}"
 }
 
+/** Accepts LLM numbers as int or float (e.g. 136.5) and rounds to Int. */
+internal object LenientIntSerializer : KSerializer<Int> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("LenientInt", PrimitiveKind.INT)
+
+    override fun serialize(encoder: Encoder, value: Int) {
+        encoder.encodeInt(value)
+    }
+
+    override fun deserialize(decoder: Decoder): Int {
+        val jsonDecoder = decoder as? JsonDecoder ?: return decoder.decodeInt()
+        val primitive = jsonDecoder.decodeJsonElement().jsonPrimitive
+        return primitive.double.roundToInt()
+    }
+}
+
 @Serializable
-internal data class DishesEnvelope(val dishes: List<DishDto>)
+internal data class LlmDishDto(
+    val name: String,
+    @Serializable(with = LenientIntSerializer::class)
+    val grams: Int,
+    @Serializable(with = LenientIntSerializer::class)
+    val kcal: Int,
+    val protein: Double,
+    val fat: Double,
+    val carbs: Double,
+    val fiber: Double = 0.0,
+)
+
+@Serializable
+internal data class DishesEnvelope(val dishes: List<LlmDishDto>)
 
 @Serializable
 internal data class FeatureSearchIntentEnvelope(val isFoodIntent: Boolean)
@@ -84,6 +123,7 @@ internal data class FeatureSearchIntentEnvelope(val isFoodIntent: Boolean)
 @Serializable
 internal data class WorkoutParseEnvelope(
     val title: String,
+    @Serializable(with = LenientIntSerializer::class)
     val burned_kcal: Int,
     val duration_minutes: Int? = null,
 )
@@ -105,7 +145,17 @@ internal object VisionResponseParser {
 
     fun parse(content: String): List<DishDto> {
         val payload = extractJsonPayload(content.trim())
-        return json.decodeFromString<DishesEnvelope>(payload).dishes
+        return json.decodeFromString<DishesEnvelope>(payload).dishes.map { dish ->
+            DishDto(
+                name = dish.name,
+                grams = dish.grams,
+                kcal = dish.kcal,
+                protein = dish.protein,
+                fat = dish.fat,
+                carbs = dish.carbs,
+                fiber = dish.fiber,
+            )
+        }
     }
 
     fun parseWorkout(content: String): WorkoutParseResult {

@@ -25,4 +25,14 @@ class VisionResponseParserTest {
         )
         assertEquals("Овсянка", dishes.single().name)
     }
+
+    @Test
+    fun `coerces float kcal and grams to int`() {
+        val dishes = VisionResponseParser.parse(
+            """{"dishes":[{"name":"Нектарин","grams":320.0,"kcal":136.5,"protein":3.52,"fat":0.96,"carbs":32.32,"fiber":5.12}]}""",
+        )
+        assertEquals("Нектарин", dishes.single().name)
+        assertEquals(320, dishes.single().grams)
+        assertEquals(137, dishes.single().kcal)
+    }
 }
