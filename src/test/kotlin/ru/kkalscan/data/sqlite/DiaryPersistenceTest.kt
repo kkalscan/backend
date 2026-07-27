@@ -18,6 +18,7 @@ import ru.kkalscan.integrations.StubVisionClient
 import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 import javax.sql.DataSource
 import kotlin.test.Test
@@ -28,6 +29,9 @@ import kotlin.test.assertTrue
 class DiaryPersistenceTest {
     @TempDir
     lateinit var tempDir: Path
+
+    private val tzOffsetMinutes = 180
+    private val tzOffset = ZoneOffset.ofTotalSeconds(tzOffsetMinutes * 60)
 
     private fun freshDatabase(fileName: String): DataSource {
         val dbPath = tempDir.resolve(fileName)
@@ -264,7 +268,8 @@ class DiaryPersistenceTest {
         val repos = InMemoryRepositories()
         val quotaService = QuotaServiceImpl(repos.quotas, repos.devices, repos.users)
         val actor = TestFixtures.guestActor()
-        val today = LocalDate.of(2026, 7, 24)
+        // addEntry stamps Instant.now(); query by the same local calendar day
+        val today = LocalDate.now(tzOffset)
 
         DiaryServiceImpl(
             SqliteDiaryRepository(dataSource),
@@ -291,7 +296,7 @@ class DiaryPersistenceTest {
             repos.scanSessions,
             StubVisionClient(),
             repos.visionBudget,
-        ).getDay(actor, today, timezoneOffsetMinutes = 180)
+        ).getDay(actor, today, timezoneOffsetMinutes = tzOffsetMinutes)
 
         assertEquals(350, day.totalKcal)
         assertEquals(1, day.entries.size)
