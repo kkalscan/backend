@@ -2,6 +2,7 @@ package ru.kkalscan.domain.port
 
 import ru.kkalscan.domain.model.Actor
 import ru.kkalscan.domain.model.DishDto
+import ru.kkalscan.domain.model.Encouragement
 import ru.kkalscan.domain.model.MealType
 import ru.kkalscan.domain.model.WorkoutParseResult
 import ru.kkalscan.domain.model.OAuthProvider
@@ -276,6 +277,7 @@ data class DiaryEntryDto(
 data class CreateDiaryEntryResponse(
     val entry: DiaryEntryDto,
     val scansLeft: Int?,
+    val encouragement: Encouragement? = null,
 )
 
 data class WorkoutEntryDto(

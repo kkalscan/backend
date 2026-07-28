@@ -40,6 +40,7 @@ class DiaryServiceImpl(
     private val scanSessionRepository: ScanSessionRepository,
     private val visionClient: VisionClient,
     private val visionBudgetRepository: VisionBudgetRepository,
+    private val encouragementService: EncouragementService = EncouragementService(),
 ) : DiaryService {
 
     private val log = LoggerFactory.getLogger(DiaryServiceImpl::class.java)
@@ -115,18 +116,22 @@ class DiaryServiceImpl(
         )
 
         val saved = diaryRepository.insertEntry(entry, dishes)
+        val encouragement = encouragementService.forDishes(dishes)
         log.info(
-            "diary add device={} entryId={} meal={} kcal={} scanId={} left={}",
+            "diary add device={} entryId={} meal={} kcal={} scanId={} left={} encouragementMood={} encouragementText={}",
             mask(actor.deviceId),
             saved.id.toString().take(8),
             request.mealType,
             saved.totalKcal,
             scanSessionId?.toString()?.take(8),
             quotaService.getScansLeft(actor, localDate),
+            encouragement.mood,
+            encouragement.text,
         )
         return CreateDiaryEntryResponse(
             entry = saved.toDto(),
             scansLeft = quotaService.getScansLeft(actor, localDate),
+            encouragement = encouragement,
         )
     }
 

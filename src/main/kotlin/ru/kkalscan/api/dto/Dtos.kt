@@ -11,6 +11,7 @@ import ru.kkalscan.domain.port.DiaryEntryDto
 import ru.kkalscan.domain.port.ScanService
 import ru.kkalscan.domain.port.SubscriptionService
 import ru.kkalscan.domain.port.WorkoutEntryDto
+import ru.kkalscan.domain.model.Encouragement
 import java.time.format.DateTimeFormatter
 
 @Serializable
@@ -86,9 +87,17 @@ data class ActivityEmulatorJson(
 )
 
 @Serializable
+data class EncouragementJson(
+    val mood: String,
+    val text: String,
+    val source: String,
+)
+
+@Serializable
 data class DiaryEntryResponse(
     val entry: DiaryEntryJson,
     val scans_left: Int? = null,
+    val encouragement: EncouragementJson? = null,
 )
 
 @Serializable
@@ -389,6 +398,13 @@ fun WorkoutEntryDto.toJson() = WorkoutEntryJson(
 fun CreateDiaryEntryResponse.toJson() = DiaryEntryResponse(
     entry = entry.toJson(),
     scans_left = scansLeft,
+    encouragement = encouragement?.toJson(),
+)
+
+fun Encouragement.toJson() = EncouragementJson(
+    mood = mood.name,
+    text = text,
+    source = source,
 )
 
 fun SubscriptionService.SubscriptionStatus.toJson() = SubscriptionStatusResponse(

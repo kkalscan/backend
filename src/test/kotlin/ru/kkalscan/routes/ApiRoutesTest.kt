@@ -207,6 +207,11 @@ class ApiRoutesTest {
         assertEquals(150, body["entry"]!!.jsonObject["total_kcal"]!!.jsonPrimitive.int)
         val dish = body["entry"]!!.jsonObject["dishes"]!!.jsonArray.single().jsonObject
         assertEquals(4.2, dish["fiber"]!!.jsonPrimitive.double)
+        // Additive field: old clients ignore via ignoreUnknownKeys
+        val encouragement = body["encouragement"]!!.jsonObject
+        assertTrue(encouragement["text"]!!.jsonPrimitive.content.isNotBlank())
+        assertTrue(encouragement["mood"]!!.jsonPrimitive.content in setOf("good", "ok", "bad"))
+        assertEquals("rules", encouragement["source"]!!.jsonPrimitive.content)
     }
 
     @Test

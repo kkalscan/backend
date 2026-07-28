@@ -12,6 +12,7 @@ import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class ScanAndDiaryServiceTest {
     private val repos = InMemoryRepositories()
@@ -86,6 +87,28 @@ class ScanAndDiaryServiceTest {
 
         assertEquals(150, entry.entry.totalKcal)
         assertEquals(2, entry.scansLeft)
+    }
+
+    @Test
+    fun `diary entry returns encouragement without breaking existing fields`() = runTest {
+        val entry = diaryService.addEntry(
+            actor,
+            DiaryService.CreateDiaryEntryRequest(
+                mealType = MealType.breakfast,
+                dishes = listOf(
+                    ru.kkalscan.domain.model.DishDto("Салат", 250, 120, 8.0, 4.0, 12.0, fiber = 9.0),
+                ),
+            ),
+            date,
+        )
+
+        assertEquals(120, entry.entry.totalKcal)
+        assertEquals(2, entry.scansLeft)
+        val encouragement = entry.encouragement
+        requireNotNull(encouragement)
+        assertEquals(ru.kkalscan.domain.model.EncouragementMood.good, encouragement.mood)
+        assertTrue(encouragement.text.isNotBlank())
+        assertEquals("rules", encouragement.source)
     }
 
     @Test
