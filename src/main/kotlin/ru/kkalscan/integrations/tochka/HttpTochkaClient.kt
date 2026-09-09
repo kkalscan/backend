@@ -55,11 +55,16 @@ class HttpTochkaClient(
             ),
         )
 
-        val response = httpClient.post("$apiBaseUrl/uapi/acquiring/v1.0/payments") {
-            header(HttpHeaders.Authorization, "Bearer $accessToken")
-            header(HttpHeaders.Accept, "application/json")
-            contentType(ContentType.Application.Json)
-            setBody(json.encodeToString(CreatePaymentRequest.serializer(), payload))
+        val response = try {
+            httpClient.post("$apiBaseUrl/uapi/acquiring/v1.0/payments") {
+                header(HttpHeaders.Authorization, "Bearer $accessToken")
+                header(HttpHeaders.Accept, "application/json")
+                contentType(ContentType.Application.Json)
+                setBody(json.encodeToString(CreatePaymentRequest.serializer(), payload))
+            }
+        } catch (e: Exception) {
+            log.warn("Tochka create payment transport failed: {}", e.message)
+            throw BadRequestException("Не удалось связаться с платёжным сервисом")
         }
 
         val body = response.bodyAsText()

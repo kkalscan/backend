@@ -10,6 +10,7 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import kotlinx.serialization.json.Json
 import ru.kkalscan.data.DatabaseFactory
+import ru.kkalscan.jobs.startPaymentSyncWorker
 import ru.kkalscan.plugins.configureStatusPages
 import ru.kkalscan.routes.configureRouting
 
@@ -51,6 +52,7 @@ fun Application.module() {
     }
     configureStatusPages()
     configureRouting(module)
+    startPaymentSyncWorker(module.paymentService)
 }
 
 fun Application.testModule(customModule: AppModule = AppModule()) {

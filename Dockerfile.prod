@@ -3,6 +3,18 @@
 FROM eclipse-temurin:21-jre
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+
+# Tochka (enter.tochka.com) uses Минцифры Russian Trusted CA — not in default JVM truststore.
+COPY certs/russian_trusted_root_ca.cer /tmp/russian_trusted_root_ca.cer
+COPY certs/russian_trusted_sub_ca.cer /tmp/russian_trusted_sub_ca.cer
+RUN keytool -importcert -noprompt -alias russian-trusted-root \
+      -cacerts -storepass changeit \
+      -file /tmp/russian_trusted_root_ca.cer \
+ && keytool -importcert -noprompt -alias russian-trusted-sub \
+      -cacerts -storepass changeit \
+      -file /tmp/russian_trusted_sub_ca.cer \
+ && rm -f /tmp/russian_trusted_*.cer
+
 COPY app.jar app.jar
 EXPOSE 8080
 VOLUME /data

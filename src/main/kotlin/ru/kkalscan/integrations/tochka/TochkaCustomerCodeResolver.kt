@@ -37,9 +37,14 @@ class TochkaCustomerCodeResolver(
     }
 
     internal suspend fun fetchBusinessCustomerCode(): String {
-        val response = httpClient.get("$apiBaseUrl/uapi/open-banking/v1.0/customers") {
-            header(HttpHeaders.Authorization, "Bearer $accessToken")
-            header(HttpHeaders.Accept, "application/json")
+        val response = try {
+            httpClient.get("$apiBaseUrl/uapi/open-banking/v1.0/customers") {
+                header(HttpHeaders.Authorization, "Bearer $accessToken")
+                header(HttpHeaders.Accept, "application/json")
+            }
+        } catch (e: Exception) {
+            log.warn("Tochka customers list transport failed: {}", e.message)
+            throw BadRequestException("Не удалось связаться с платёжным сервисом")
         }
 
         val body = response.bodyAsText()
