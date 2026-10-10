@@ -6,7 +6,6 @@ import ru.kkalscan.domain.model.Actor
 import ru.kkalscan.domain.port.PaymentRecord
 import ru.kkalscan.integrations.LoggingPlainTextMailer
 import ru.kkalscan.integrations.StubTochkaClient
-import java.time.Instant
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -52,7 +51,7 @@ class PaymentSyncTest {
                 listAmountKopecks = 20_000,
             ),
         )
-        tochka.markApproved(created.id, Instant.parse("2026-07-24T06:37:50Z"))
+        tochka.markApproved(created.id)
 
         val result = service.syncPendingPayments(deviceId)
 
@@ -84,7 +83,7 @@ class PaymentSyncTest {
                 listAmountKopecks = 20_000,
             ),
         )
-        tochka.markApproved(created.id, Instant.parse("2026-07-24T06:37:50Z"))
+        tochka.markApproved(created.id)
 
         val activated = service.syncAllPendingPayments()
 
