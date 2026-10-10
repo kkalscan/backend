@@ -48,15 +48,15 @@
 
 ## 9. Сумма Точки = после скидки
 
-- List price только в `TariffCatalog` (seed: 200 ₽ / 5000 ₽)
+- List price только в `TariffCatalog` (seed: 300 ₽ / 5000 ₽)
 - Bound promo (`POST /promo/apply` → device bind) снижает `amount_kopecks` в `createTochkaPayment` / free start
 - Клиент **не** шлёт промокод в `pro/start` — только `tariff`
 
 ## 10. Smoke
 
-1. `GET /subscription/offers?device_id=` → 200 и 5000
+1. `GET /subscription/offers?device_id=` → 300 и 5000
 2. `POST /promo/apply` `{ device_id, promo_code: "Lida" }` → 50%
-3. `GET /subscription/offers` → 100 и 2500
+3. `GET /subscription/offers` → 150 и 2500
 4. `POST /payments/pro/start` `{ device_id, tariff: "pro_lifetime_5000" }`  
    - free mode: Pro с далёким `pro_until`  
    - paid mode: Tochka на 250_000 коп. → webhook → Pro

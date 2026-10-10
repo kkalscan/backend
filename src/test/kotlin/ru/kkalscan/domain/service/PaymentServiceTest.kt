@@ -147,10 +147,10 @@ class PaymentServiceTest {
     }
 
     @Test
-    fun `create payment uses catalog price 200 rub`() = runTest {
+    fun `create payment uses catalog price 300 rub`() = runTest {
         val response = service.createTochkaPayment(deviceId, TariffCatalog.MONTHLY_ID)
         val payment = repos.payments.findById(response.paymentId)
-        assertEquals(20_000, payment?.amountKopecks)
+        assertEquals(30_000, payment?.amountKopecks)
     }
 
     @Test
@@ -158,7 +158,7 @@ class PaymentServiceTest {
         promoService.applyPromo(deviceId, "Lida")
         val response = service.createTochkaPayment(deviceId, TariffCatalog.MONTHLY_ID)
         val payment = repos.payments.findById(response.paymentId)
-        assertEquals(10_000, payment?.amountKopecks)
+        assertEquals(15_000, payment?.amountKopecks)
     }
 
     @Test
@@ -249,8 +249,8 @@ class PaymentServiceTest {
         assertEquals(TariffCatalog.MONTHLY_ID, event.tariff)
         assertEquals("Lida", event.promoCode)
         assertEquals(50, event.discountPercent)
-        assertEquals(10_000, event.amountKopecks)
-        assertEquals(20_000, event.listAmountKopecks)
+        assertEquals(15_000, event.amountKopecks)
+        assertEquals(30_000, event.listAmountKopecks)
         assertEquals("free_promo", event.status)
         assertNotNull(event.paidAt)
         assertNotNull(event.paymentId)
@@ -265,8 +265,8 @@ class PaymentServiceTest {
         val event = repos.promoPurchases.all().single()
         assertNull(event.promoCode)
         assertEquals(0, event.discountPercent)
-        assertEquals(20_000, event.amountKopecks)
-        assertEquals(20_000, event.listAmountKopecks)
+        assertEquals(30_000, event.amountKopecks)
+        assertEquals(30_000, event.listAmountKopecks)
         assertEquals("free_promo", event.status)
     }
 
@@ -277,7 +277,7 @@ class PaymentServiceTest {
         val pending = assertNotNull(repos.payments.findById(response.paymentId))
         assertEquals("Lida", pending.promoCode)
         assertEquals(50, pending.discountPercent)
-        assertEquals(20_000, pending.listAmountKopecks)
+        assertEquals(30_000, pending.listAmountKopecks)
         assertEquals(0, repos.promoPurchases.all().size)
 
         val tochkaId = "tochka_${response.paymentId.toString().take(8)}"
@@ -290,8 +290,8 @@ class PaymentServiceTest {
         assertEquals(response.paymentId, event.paymentId)
         assertEquals("Lida", event.promoCode)
         assertEquals(50, event.discountPercent)
-        assertEquals(10_000, event.amountKopecks)
-        assertEquals(20_000, event.listAmountKopecks)
+        assertEquals(15_000, event.amountKopecks)
+        assertEquals(30_000, event.listAmountKopecks)
         assertEquals("paid", event.status)
     }
 }
@@ -305,7 +305,7 @@ class PromoServiceTest {
     fun `offers without promo are list prices`() {
         val offers = promoService.listOffers(deviceId)
         assertEquals(2, offers.size)
-        assertEquals(200, offers.first { it.tariff == TariffCatalog.MONTHLY_ID }.amountRub)
+        assertEquals(300, offers.first { it.tariff == TariffCatalog.MONTHLY_ID }.amountRub)
         assertEquals(5000, offers.first { it.tariff == TariffCatalog.LIFETIME_ID }.amountRub)
         assertEquals(0, offers.first().discountPercent)
         assertNull(offers.first().promoCode)
@@ -315,7 +315,7 @@ class PromoServiceTest {
     fun `apply Lida halves offer amounts`() {
         promoService.applyPromo(deviceId, "Lida")
         val offers = promoService.listOffers(deviceId)
-        assertEquals(100, offers.first { it.tariff == TariffCatalog.MONTHLY_ID }.amountRub)
+        assertEquals(150, offers.first { it.tariff == TariffCatalog.MONTHLY_ID }.amountRub)
         assertEquals(2500, offers.first { it.tariff == TariffCatalog.LIFETIME_ID }.amountRub)
         assertEquals(50, offers.first().discountPercent)
         assertEquals("Lida", offers.first().promoCode)
@@ -334,7 +334,7 @@ class PromoServiceTest {
         repos.promoCodes.upsert(PromoCode(code = "Friends", discountPercent = 20, active = true))
         promoService.applyPromo(deviceId, "friends")
         val offers = promoService.listOffers(deviceId)
-        assertEquals(160, offers.first { it.tariff == TariffCatalog.MONTHLY_ID }.amountRub)
+        assertEquals(240, offers.first { it.tariff == TariffCatalog.MONTHLY_ID }.amountRub)
         assertEquals(4000, offers.first { it.tariff == TariffCatalog.LIFETIME_ID }.amountRub)
     }
 

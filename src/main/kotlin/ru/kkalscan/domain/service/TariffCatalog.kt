@@ -19,7 +19,7 @@ object TariffCatalog {
         TariffOffer(
             id = MONTHLY_ID,
             title = "KkalScan Pro — месяц",
-            priceKopecks = 20_000,
+            priceKopecks = 30_000,
             durationDays = 30,
         ),
         TariffOffer(

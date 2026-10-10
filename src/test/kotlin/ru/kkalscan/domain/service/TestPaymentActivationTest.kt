@@ -51,8 +51,8 @@ class TestPaymentActivationTest {
         val event = repos.promoPurchases.all().single()
         assertEquals("Lida", event.promoCode)
         assertEquals(50, event.discountPercent)
-        assertEquals(10_000, event.amountKopecks)
-        assertEquals(20_000, event.listAmountKopecks)
+        assertEquals(15_000, event.amountKopecks)
+        assertEquals(30_000, event.listAmountKopecks)
         assertEquals("test_paid", event.status)
     }
 
