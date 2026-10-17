@@ -48,7 +48,7 @@
 
 ## 9. Сумма Точки = после скидки
 
-- List price только в `TariffCatalog` (seed: 300 ₽ / 5000 ₽)
+- List price только в `TariffCatalog` (seed: 350 ₽ / 5000 ₽)
 - Bound promo (`POST /promo/apply` → device bind) снижает `amount_kopecks` в `createTochkaPayment` / free start
 - Клиент **не** шлёт промокод в `pro/start` — только `tariff`
 

@@ -666,7 +666,7 @@ class ApiRoutesTest {
         val offers = json.parseToJsonElement(response.bodyAsText()).jsonObject["offers"]!!.jsonArray
         assertEquals(2, offers.size)
         val byTariff = offers.associateBy { it.jsonObject["tariff"]!!.jsonPrimitive.content }
-        assertEquals(300, byTariff["pro_monthly_199"]!!.jsonObject["amount_rub"]!!.jsonPrimitive.int)
+        assertEquals(350, byTariff["pro_monthly_199"]!!.jsonObject["amount_rub"]!!.jsonPrimitive.int)
         assertEquals(5000, byTariff["pro_lifetime_5000"]!!.jsonObject["amount_rub"]!!.jsonPrimitive.int)
     }
 
@@ -687,7 +687,7 @@ class ApiRoutesTest {
             client.get("/api/v1/subscription/offers?device_id=$deviceId").bodyAsText(),
         ).jsonObject["offers"]!!.jsonArray
         val byTariff = offers.associateBy { it.jsonObject["tariff"]!!.jsonPrimitive.content }
-        assertEquals(150, byTariff["pro_monthly_199"]!!.jsonObject["amount_rub"]!!.jsonPrimitive.int)
+        assertEquals(175, byTariff["pro_monthly_199"]!!.jsonObject["amount_rub"]!!.jsonPrimitive.int)
         assertEquals(2500, byTariff["pro_lifetime_5000"]!!.jsonObject["amount_rub"]!!.jsonPrimitive.int)
 
         val start = client.post("/api/v1/payments/pro/start") {
